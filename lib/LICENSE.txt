@@ -1,0 +1,9 @@
+In this directory, the file "elisa-spritesheet1.png" was made by
+Jetrel, who placed it into the public domain via the CC0 license. It
+was obtained from <http://opengameart.org/content/castle-platformer>
+on September 21, 2013.
+
+In 2013, I, Ross Angle, derived the file
+"elisa-spritesheet1-transparent.png" from "elisa-spritesheet1.png" by
+replacing the background color with full transparency. I release this
+file under the CC0 license.

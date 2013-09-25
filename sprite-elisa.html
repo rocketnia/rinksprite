@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
+<title>Rinksprite</title>
+<!-- sprite-elisa.html -->
+<!--
+
+The copyright and license information below applies to this file as an
+independent work. Other files commonly used or bundled with this one
+may have different authors and different posted licenses.
+
+Note that this file contains data meticulously derived from the assets
+at <http://opengameart.org/content/castle-platformer>. Jetrel authored
+these assets and placed them into the public domain via the CC0
+license.
+
+-->
+<!--
+
+Copyright (c) 2012, Ross Angle
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+* Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+-->
+<meta name="viewport"
+    content="initial-scale = 1.0, maximum-scale = 1.0" />
+<style type="text/css">
+</style>
+<script type="text/javascript">"use strict";
+
+(function () {
+
+function makeCanvas( w, h ) {
+    var result = document.createElement( "canvas" );
+    result.width = w;
+    result.height = h;
+    return result;
+}
+
+function copyCanvas( orig ) {
+    var result = makeCanvas( orig.width, orig.height );
+    result.getContext( "2d" ).drawImage( orig, 0, 0 );
+    return result;
+}
+
+function clipCanvas( orig, x, y, w, h ) {
+    if ( x === 0 && y === 0 && w === orig.width && h === orig.height )
+        return orig;
+    var result = makeCanvas( w, h );
+    result.getContext( "2d" ).drawImage( orig,
+        x, y, w, h, 0, 0, w, h );
+    return result;
+}
+
+function multiplyCanvasX( n, orig ) {
+    if ( n === 1 ) return orig;
+    var ow = orig.width, oh = orig.height;
+    var result = makeCanvas( ow * n, oh );
+    var ctx = result.getContext( "2d" );
+    for ( var x = 0; x < ow; x++ )
+    for ( var i = 0; i < n; i++ )
+        ctx.drawImage( orig, x, 0, 1, oh, n * x + i, 0, 1, oh );
+    return result;
+}
+
+function multiplyCanvasY( n, orig ) {
+    if ( n === 1 ) return orig;
+    var ow = orig.width, oh = orig.height;
+    var result = makeCanvas( ow, oh * n );
+    var ctx = result.getContext( "2d" );
+    for ( var y = 0; y < oh; y++ )
+    for ( var j = 0; j < n; j++ )
+        ctx.drawImage( orig, 0, y, ow, 1, 0, n * y + j, ow, 1 );
+    return result;
+}
+
+function multiplyCanvasXY( x, y, orig ) {
+    return multiplyCanvasY( y, multiplyCanvasX( x, orig ) );
+}
+
+function multiplyCanvas( n, orig ) {
+    return multiplyCanvasXY( n, n, orig );
+}
+
+function divideCanvas( n, orig ) {
+    if ( n === 1 ) return orig;
+    var ow = orig.width, oh = orig.height;
+    var rw = ~~(ow / n), rh = ~~(oh / n);
+    var result = makeCanvas( rw, rh );
+    result.getContext( "2d" ).drawImage( orig,
+        0, 0, ow, oh, 0, 0, rw, rh );
+    return result;
+}
+
+function withFillStyle( ctx, x, body ) {
+    var old = ctx.fillStyle;
+    ctx.fillStyle = x;
+    try { return body(); }
+    finally { ctx.fillStyle = old; }
+}
+
+function withCompositeOp( ctx, x, body ) {
+    var old = ctx.globalCompositeOperation;
+    ctx.globalCompositeOperation = x;
+    try { return body(); }
+    finally { ctx.globalCompositeOperation = old; }
+}
+
+function withAlpha( ctx, x, body ) {
+    var old = ctx.globalAlpha;
+    ctx.globalAlpha = x;
+    try { return body(); }
+    finally { ctx.globalAlpha = old; }
+}
+
+function withMoreAlpha( ctx, x, body ) {
+    return withAlpha( ctx, ctx.globalAlpha * x, body );
+}
+
+// This ups the brightness and lowers the contrast, by using alpha. It
+// also preserves fully transparent areas.
+// TODO: See what it does with semitransparent areas, and see if it's
+// desirable behavior.
+function paleCanvas( factor, orig ) {
+    if ( factor === 1 ) return orig;
+    var w = orig.width, h = orig.height;
+    var result = copyCanvas( orig );
+    var ctx = result.getContext( "2d" );
+    withCompositeOp( ctx, "source-atop", function () {
+        withFillStyle( ctx,
+            "rgba( 255, 255, 255, " + (1 - factor) + " )",
+            function () {
+                ctx.fillRect( 0, 0, w, h );
+            } );
+    } );
+    return result;
+}
+
+// This creates a square canvas with an even number of pixels on its
+// side, with the center corresponding to (x, y) from the original.
+// The canvas is just big enough to contain the original bounding box
+// rotated at every angle.
+function rotateCanvas( x, y, angle, orig ) {
+    var ow = orig.width, oh = orig.height;
+    var radiusSq = 0;
+    function registerPoint( px, py ) {
+        var w = x - px, h = y - py;
+        radiusSq = Math.max( radiusSq, w * w + h * h );
+    }
+    registerPoint( 0, 0 );
+    registerPoint( ow, 0 );
+    registerPoint( 0, oh );
+    registerPoint( ow, oh );
+    var radius = Math.sqrt( radiusSq );
+    var halfrw = ~~radius === radius ? radius : ~~(radius + 1);
+    var result = makeCanvas( 2 * halfrw, 2 * halfrw );
+    var ctx = result.getContext( "2d" );
+    ctx.save();
+    ctx.translate( halfrw, halfrw );
+    ctx.rotate( -angle );
+    ctx.drawImage( orig, -x, -y );
+    ctx.restore();
+    return result;
+}
+
+// NOTE: This alternate, more direct version of multiplyCanvas isn't
+// nearly as efficient.
+/*
+function multiplyCanvas( n, orig ) {
+    var ow = orig.width, oh = orig.height;
+    var result = makeCanvas( ow * n, oh * n );
+    var ctx = result.getContext( "2d" );
+    for ( var x = 0; x < ow; x++ )
+    for ( var y = 0; y < oh; y++ )
+    for ( var i = 0; i < n; i++ )
+    for ( var j = 0; j < n; j++ )
+        ctx.drawImage( orig, x, y, 1, 1, n * x + i, n * y + j, 1, 1 );
+    return result;
+}
+*/
+
+// NOTE: Here's an alternate version of paleCanvas which probably
+// isn't as efficient or as faithful to semitransparent areas.
+/*
+function paleCanvas( factor, orig ) {
+    if ( factor === 1 ) return orig;
+    var w = orig.width, h = orig.height;
+    var result = makeCanvas( w, h );
+    var ctx = result.getContext( "2d" );
+    withFillStyle( ctx, "#FFFFFF", function () {
+        ctx.fillRect( 0, 0, w, h );
+    } );
+    withCompositeOp( ctx, "destination-in", function () {
+        ctx.drawImage( orig, 0, 0 );
+    } );
+    withMoreAlpha( ctx, factor, function () {
+        ctx.drawImage( orig, 0, 0 );
+    } );
+    return result;
+}
+*/
+
+var profilerPrevTimeMillis = new Date().getTime();
+var profilerEntries = {};
+var profilerCurrent = { name: "other", totalMillis: 0 };
+profilerEntries[ profilerCurrent.name ] = profilerCurrent;
+function prof( opt_name ) {
+    var name = opt_name === void 0 ? "other" : opt_name;
+    if ( {}[ name ] )
+        throw new Error(
+            "Shouldn't use an Object.prototype property name as a " +
+            "profiler entry name, to avoid the IE DontEnum bug." );
+    if ( name === profilerCurrent.name )
+        return;
+    var nowMillis = new Date().getTime();
+    profilerCurrent.totalMillis += nowMillis - profilerPrevTimeMillis;
+    profilerPrevTimeMillis = nowMillis;
+    profilerCurrent = profilerEntries[ name ] ||
+        (profilerEntries[ name ] = { name: name, totalMillis: 0 });
+}
+function getProfilerTotalMillis() {
+    var result = {};
+    for ( var k in profilerEntries )
+        result[ k ] = profilerEntries[ k ].totalMillis;
+    result[ profilerCurrent.name ] +=
+        new Date().getTime() - profilerPrevTimeMillis;
+    return result;
+}
+
+var elisaFrames = {
+    stand1: [ 10, 13, 34, 41, { bot: [ 22, 41 ] } ],
+    stand2: [ 68, 14, 34, 40, { bot: [ 21, 40 ] } ],
+    stand3: [ 127, 15, 33, 39, { bot: [ 19, 39 ] } ],
+    duck1: [ 192, 21, 31, 33, { bot: [ 17, 33 ] } ],
+    duck2: [ 249, 25, 29, 30, { bot: [ 17, 29 ] } ],
+    // TODO: See if we should include the palette-swaps on the top
+    // row.
+    
+    jump1: [ 15, 64, 38, 45, { frameOuterTopLeft: [ -7, -3 ] } ],
+    jump2: [ 74, 64, 39, 45, { frameOuterTopLeft: [ -9, -3 ] } ],
+    jump3: [ 131, 63, 39, 45, { frameOuterTopLeft: [ -9, -2 ] } ],
+    // NOTE: The two jump2 frames may be identical, but they're at
+    // different places in their surrounding alignment boxes.
+//    jump2: [ 187, 64, 39, 45, { frameOuterTopLeft: [ -8, -3 ] } ],
+    
+    walk1: [ 25, 131, 23, 40, { nearFoot: [ 3, 40 ] } ],
+    walk2: [ 74, 132, 32, 39, { nearFoot: [ 3, 39 ], nearFootGuess: [ 3, 39 ] } ],
+    walk3: [ 134, 131, 26, 40, { farFoot: [ 23, 40 ], nearFootGuess: [ -2, 40 ] } ],
+    walk4: [ 194, 130, 20, 42, { farFoot: [ 11, 42 ] } ],
+    walk5: [ 252, 131, 22, 40, { farFoot: [ 4, 40 ] } ],
+    walk6: [ 302, 132, 33, 39, { farFoot: [ 3, 39 ], farFootGuess: [ 3, 39 ] } ],
+    walk7: [ 361, 131, 27, 40, { nearFoot: [ 24, 40 ], farFootGuess: [ -2, 40 ] } ],
+    walk8: [ 423, 130, 22, 41, { nearFoot: [ 13, 41 ] } ],
+    
+    slash1: [ 26, 193, 30, 44, { bot: [ 18, 44 ] } ],
+    slash2: [ 124, 193, 24, 44, { bot: [ 12, 44 ] } ],
+    slash3: [ 213, 198, 27, 39, { bot: [ 15, 39 ] } ],
+    slash4: [ 35, 263, 49, 39, { bot: [ 9, 39 ] } ],
+    slash5: [ 108, 264, 68, 38, { bot: [ 28, 38 ] } ],
+    slash6: [ 198, 263, 44, 39, { bot: [ 30, 39 ] } ]
+};
+
+var elisaAnims = {
+    stand: [
+        elisaFrames.stand1, "bot",
+        elisaFrames.stand2, "bot",
+        elisaFrames.stand3, "bot"
+    ],
+    duck: [
+        elisaFrames.duck1, "bot",
+        elisaFrames.duck2, "bot"
+    ],
+    jump: [
+        elisaFrames.jump1, "frameOuterTopLeft",
+        elisaFrames.jump2, "frameOuterTopLeft",
+        elisaFrames.jump3, "frameOuterTopLeft"
+    ],
+    walk: [
+        elisaFrames.walk1, "nearFoot",
+        elisaFrames.walk2, "nearFootGuess",
+        elisaFrames.walk3, "farFoot",
+        elisaFrames.walk4, "farFoot",
+        elisaFrames.walk5, "farFoot",
+        elisaFrames.walk6, "farFootGuess",
+        elisaFrames.walk7, "nearFoot",
+        elisaFrames.walk8, "nearFoot"
+    ],
+    slash: [
+        elisaFrames.slash1, "bot",
+        elisaFrames.slash2, "bot",
+        elisaFrames.slash3, "bot",
+        elisaFrames.slash4, "bot",
+        elisaFrames.slash5, "bot",
+        elisaFrames.slash6, "bot"
+    ]
+};
+
+prof( "window load" );
+addEventListener( "load", function () {
+    prof();
+    var img = new Image();
+    img.src = "lib/elisa-spritesheet1-transparent.png";
+    prof( "image load" );
+    img.addEventListener( "load", function () {
+        
+        prof( "render sprites" );
+        var elisaPrescaledCanvases = {};
+        for ( var k in elisaAnims )
+            elisaPrescaledCanvases[ k ] = elisaAnims[ k ].map(
+                function ( rect, i ) {
+                
+                if ( i % 2 === 1 )
+                    return rect;
+                
+                var clipped = clipCanvas( img,
+                    rect[ 0 ], rect[ 1 ], rect[ 2 ], rect[ 3 ] );
+                var hotSpots = {};
+                for ( var k in rect[ 4 ] )
+                    hotSpots[ k ] = { x: rect[ 4 ][ k ][ 0 ] * 2,
+                        y: rect[ 4 ][ k ][ 1 ] * 2 };
+                return {
+//                    canvas: divideCanvas( 4,
+//                        multiplyCanvasXY( 7, 8, clipped ) ),
+//                    canvas: multiplyCanvas( 2,
+//                        paleCanvas( 0.3, clipped ) ),
+                    canvas: multiplyCanvas( 2, clipped ),
+                    hotSpots: hotSpots
+                };
+            } );
+        
+        prof( "render canvas" );
+        var csize = 400;
+        var canvas = makeCanvas( csize, csize );
+        var ctx = canvas.getContext( "2d" );
+        
+        var animToShow = elisaPrescaledCanvases.walk;
+        
+        var frameNum = 0;
+        var stepIntervalMillis = ~~(1000 / 12);
+        var renderLocation = { x: 150, y: 150 };
+        function step() {
+//            ctx.globalAlpha = 1;
+            ctx.fillStyle = "#90D0F9";
+            ctx.fillRect( 0, 0, csize, csize );
+            var sprite = animToShow[ frameNum * 2 ];
+//            ctx.globalAlpha = 0.7;
+            ctx.drawImage( sprite.canvas,
+                renderLocation.x, renderLocation.y );
+            var hotSpotName = animToShow[ frameNum * 2 + 1 ];
+            var oldHotSpot = sprite.hotSpots[ hotSpotName ];
+            frameNum++;
+            frameNum %= animToShow.length / 2;
+            var newHotSpot =
+                animToShow[ frameNum * 2 ].hotSpots[ hotSpotName ];
+            renderLocation.x += oldHotSpot.x - newHotSpot.x;
+            renderLocation.y += oldHotSpot.y - newHotSpot.y;
+//            renderLocation.x += 8 * 2;
+            renderLocation.x %= csize;
+            setTimeout( step, stepIntervalMillis );
+        }
+        step();
+        
+        prof();
+/*
+        var canvas = document.createElement( "canvas" );
+        var k = 3;
+        var iw = img.width, ih = img.height;
+        var cw = canvas.width = iw * k;
+        var ch = canvas.height = ih * k;
+        var ctx = canvas.getContext( "2d" );
+        ctx.drawImage( img, 0, 0, iw, ih, 0, 0, cw, ch );
+*/
+        var mainArea = document.getElementById( "main-area" );
+        mainArea.appendChild( canvas );
+        var pre = document.createElement( "pre" );
+        pre.appendChild( document.createTextNode(
+            "Profiling information (in ms):\n" +
+            JSON.stringify( getProfilerTotalMillis() ) ) );
+        mainArea.appendChild( pre );
+        
+    }, !"capture" );
+}, !"capture" );
+
+})();
+
+</script>
+</head>
+<body>
+<div id="main-area"></div>
+<p>The Elisa sprite shown above was
+  <a href="http://opengameart.org/content/castle-platformer">created
+  by Jetrel</a> and placed into the public domain under the CC0
+  license.</p>
+</body>
+</html>
