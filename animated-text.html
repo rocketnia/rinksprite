@@ -81,7 +81,8 @@ addEventListener( "load", function () {
                 ~~((nowMillis - startMillis) * charactersPerSecond /
                     1000) );
         var inWhitespace = true;
-        var n = textNodeToAnimate.data.length
+        var beenOutOfWhitespace = false;
+        var n = textNodeToAnimate.data.length;
         for ( var i = 0; i < n; i++ ) {
             if ( charactersToConsume === 0 )
                 break;
@@ -89,19 +90,24 @@ addEventListener( "load", function () {
             if ( /^[ \t\r\n]$/.test(
                 textNodeToAnimate.data.charAt( i ) ) ) {
                 
-                if ( !inWhitespace )
-                    charactersToConsume--;
                 inWhitespace = true;
             } else {
+                if ( inWhitespace && beenOutOfWhitespace ) {
+                    charactersToConsume--;
+                    if ( charactersToConsume === 0 ) {
+                        i--;
+                        break;
+                    }
+                }
                 charactersToConsume--;
                 inWhitespace = false;
+                beenOutOfWhitespace = true;
             }
         }
         
         var hideRange = document.createRange();
         hideRange.setStart( textNodeToAnimate, i );
-        hideRange.setEnd(
-            textNodeToAnimate, textNodeToAnimate.data.length );
+        hideRange.setEndAfter( textToAnimateWrapper );
         var hideRects = hideRange.getClientRects();
         if ( hideRects.length === 0 )
             return;
