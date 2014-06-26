@@ -43,6 +43,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <meta name="viewport"
     content="initial-scale = 1.0, maximum-scale = 1.0" />
 <style type="text/css">
+#sample-rectangle {
+    position: relative;
+    width: 200px;
+    height: 300px;
+    background: #006600;
+}
 #text-to-animate-wrapper {
     font-family: sans-serif;
     text-shadow: 2px 1px 2px rgba( 0, 0, 0, 0.3 );
@@ -132,8 +138,57 @@ function animateText( elems, charactersPerSecond ) {
     }
 }
 
+function animateShock(
+    elems, totalMillis, updateMillis, squareRadiusPx ) {
+    
+    var nowMillis = new Date().getTime();
+    var endMillis = nowMillis + totalMillis;
+    var nextChangeMillis = nowMillis;
+    
+    var oldPosition = elems.elem.style.position;
+    var oldTop = elems.elem.style.top;
+    var oldLeft = elems.elem.style.left;
+    var oldRight = elems.elem.style.right;
+    var oldBottom = elems.elem.style.bottom;
+    elems.elem.style.position = "relative";
+    elems.elem.style.top = "0";
+    elems.elem.style.left = "0";
+    elems.elem.style.right = null;
+    elems.elem.style.bottom = null;
+    
+    animate();
+    function animate() {
+        var nowMillis = new Date().getTime();
+        
+        if ( endMillis <= nowMillis ) {
+            elems.elem.style.position = oldPosition;
+            elems.elem.style.top = oldTop;
+            elems.elem.style.left = oldLeft;
+            elems.elem.style.right = oldRight;
+            elems.elem.style.bottom = oldBottom;
+            return;
+        }
+        
+        if ( nextChangeMillis <= nowMillis ) {
+            var randCoord = function () {
+                return "" +
+                    (Math.random() * squareRadiusPx * 2 -
+                        squareRadiusPx) +
+                    "px";
+            };
+            elems.elem.style.top = randCoord();
+            elems.elem.style.left = randCoord();
+            nextChangeMillis += updateMillis;
+        }
+        
+        requestAnimationFrame( function () {
+            animate();
+        } );
+    }
+}
 
 addEventListener( "load", function () {
+    
     var textToAnimateWrapper =
         document.getElementById( "text-to-animate-wrapper" );
     var hideParaEnd = document.getElementById( "hide-para-end" );
@@ -145,6 +200,14 @@ addEventListener( "load", function () {
         hideLineEnd: hideLineEnd,
         textToAnimate: textToAnimate
     }, 100 );
+    
+    var sampleRectangle =
+        document.getElementById( "sample-rectangle" );
+    animateShock( {
+        elem: sampleRectangle
+    }, 400, 100, 40 );
+    
+    
 }, !"capture" );
 
 })();
@@ -152,6 +215,7 @@ addEventListener( "load", function () {
 </script>
 </head>
 <body>
+<div id="sample-rectangle"></div>
 <div id="text-to-animate-wrapper"
     ><div id="hide-para-end"></div
     ><div id="hide-line-end"></div
