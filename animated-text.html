@@ -52,22 +52,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (function () {
 
-addEventListener( "load", function () {
-    var textToAnimateWrapper =
-        document.getElementById( "text-to-animate-wrapper" );
-    var hideParaEnd = document.getElementById( "hide-para-end" );
-    var hideLineEnd = document.getElementById( "hide-line-end" );
-    var textToAnimate = document.getElementById( "text-to-animate" );
-    if ( textToAnimate.childNodes.length !== 1 )
+function animateText( elems, charactersPerSecond ) {
+    if ( elems.textToAnimate.childNodes.length !== 1 )
         throw new Error();
-    var textNodeToAnimate = textToAnimate.childNodes.item( 0 );
+    var textNodeToAnimate = elems.textToAnimate.childNodes.item( 0 );
     if ( textNodeToAnimate.nodeType !== document.TEXT_NODE )
         throw new Error();
     
-    hideParaEnd.style.backgroundColor = "white";
-    hideParaEnd.style.position = "absolute";
-    hideLineEnd.style.backgroundColor = "white";
-    hideLineEnd.style.position = "absolute";
+    elems.hideParaEnd.style.backgroundColor = "white";
+    elems.hideParaEnd.style.position = "absolute";
+    elems.hideLineEnd.style.backgroundColor = "white";
+    elems.hideLineEnd.style.position = "absolute";
     
     var charactersPerSecond = 100;
     var textIndex = 0;
@@ -107,25 +102,25 @@ addEventListener( "load", function () {
         
         var hideRange = document.createRange();
         hideRange.setStart( textNodeToAnimate, i );
-        hideRange.setEndAfter( textToAnimateWrapper );
+        hideRange.setEndAfter( elems.textToAnimateWrapper );
         var hideRects = hideRange.getClientRects();
         if ( hideRects.length === 0 )
             return;
         var hideLineRect = hideRects.item( 0 );
         
-        var wrapperRect = textToAnimate.getBoundingClientRect();
+        var wrapperRect = elems.textToAnimate.getBoundingClientRect();
         
-        hideParaEnd.style.top = hideLineRect.bottom + "px";
-        hideParaEnd.style.left = wrapperRect.left + "px";
-        hideParaEnd.style.height =
+        elems.hideParaEnd.style.top = hideLineRect.bottom + "px";
+        elems.hideParaEnd.style.left = wrapperRect.left + "px";
+        elems.hideParaEnd.style.height =
             (wrapperRect.bottom - hideLineRect.bottom) + "px";
-        hideParaEnd.style.width = wrapperRect.width + "px";
+        elems.hideParaEnd.style.width = wrapperRect.width + "px";
         
-        hideLineEnd.style.top = hideLineRect.top + "px";
-        hideLineEnd.style.left = hideLineRect.left + "px";
-        hideLineEnd.style.height =
+        elems.hideLineEnd.style.top = hideLineRect.top + "px";
+        elems.hideLineEnd.style.left = hideLineRect.left + "px";
+        elems.hideLineEnd.style.height =
             (wrapperRect.bottom - hideLineRect.top) + "px";
-        hideLineEnd.style.width =
+        elems.hideLineEnd.style.width =
             (wrapperRect.right - hideLineRect.left) + "px";
         
         if ( i === textNodeToAnimate.data.length )
@@ -135,6 +130,21 @@ addEventListener( "load", function () {
             animate();
         } );
     }
+}
+
+
+addEventListener( "load", function () {
+    var textToAnimateWrapper =
+        document.getElementById( "text-to-animate-wrapper" );
+    var hideParaEnd = document.getElementById( "hide-para-end" );
+    var hideLineEnd = document.getElementById( "hide-line-end" );
+    var textToAnimate = document.getElementById( "text-to-animate" );
+    animateText( {
+        textToAnimateWrapper: textToAnimateWrapper,
+        hideParaEnd: hideParaEnd,
+        hideLineEnd: hideLineEnd,
+        textToAnimate: textToAnimate
+    }, 100 );
 }, !"capture" );
 
 })();
