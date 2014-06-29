@@ -45,11 +45,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <style type="text/css">
 #sample-rectangle {
     position: relative;
-    width: 200px;
-    height: 300px;
+    width: 204px;
+    height: 246px;
     background: #006600;
 }
+#sample-rectangle-canvas {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
 #text-to-animate-wrapper {
+    position: relative;
     font-family: sans-serif;
     text-shadow: 2px 1px 2px rgba( 0, 0, 0, 0.3 );
 }
@@ -116,14 +122,17 @@ function animateText( elems, charactersPerSecond ) {
         
         var wrapperRect = elems.textToAnimate.getBoundingClientRect();
         
-        elems.hideParaEnd.style.top = hideLineRect.bottom + "px";
-        elems.hideParaEnd.style.left = wrapperRect.left + "px";
+        elems.hideParaEnd.style.top =
+            (hideLineRect.bottom - wrapperRect.top) + "px";
+        elems.hideParaEnd.style.left = "0px";
         elems.hideParaEnd.style.height =
             (wrapperRect.bottom - hideLineRect.bottom) + "px";
         elems.hideParaEnd.style.width = wrapperRect.width + "px";
         
-        elems.hideLineEnd.style.top = hideLineRect.top + "px";
-        elems.hideLineEnd.style.left = hideLineRect.left + "px";
+        elems.hideLineEnd.style.top =
+            (hideLineRect.top - wrapperRect.top) + "px";
+        elems.hideLineEnd.style.left =
+            (hideLineRect.left - wrapperRect.left) + "px";
         elems.hideLineEnd.style.height =
             (wrapperRect.bottom - hideLineRect.top) + "px";
         elems.hideLineEnd.style.width =
@@ -145,29 +154,36 @@ function animateShock(
     var endMillis = nowMillis + totalMillis;
     var nextChangeMillis = nowMillis;
     
-    var oldPosition = elems.elem.style.position;
     var oldTop = elems.elem.style.top;
     var oldLeft = elems.elem.style.left;
     var oldRight = elems.elem.style.right;
     var oldBottom = elems.elem.style.bottom;
-    elems.elem.style.position = "relative";
     elems.elem.style.top = "0";
     elems.elem.style.left = "0";
     elems.elem.style.right = null;
     elems.elem.style.bottom = null;
     
+    var canceled = false;
+    
+    function cancel() {
+        if ( canceled )
+            return;
+        canceled = true;
+        elems.elem.style.top = oldTop;
+        elems.elem.style.left = oldLeft;
+        elems.elem.style.right = oldRight;
+        elems.elem.style.bottom = oldBottom;
+    }
+    
     animate();
     function animate() {
         var nowMillis = new Date().getTime();
         
-        if ( endMillis <= nowMillis ) {
-            elems.elem.style.position = oldPosition;
-            elems.elem.style.top = oldTop;
-            elems.elem.style.left = oldLeft;
-            elems.elem.style.right = oldRight;
-            elems.elem.style.bottom = oldBottom;
+        if ( canceled )
             return;
-        }
+        
+        if ( endMillis <= nowMillis )
+            return void cancel();
         
         if ( nextChangeMillis <= nowMillis ) {
             var randCoord = function () {
@@ -185,6 +201,66 @@ function animateShock(
             animate();
         } );
     }
+    
+    var result = {};
+    result.cancel = function () {
+        cancel();
+    };
+    return result;
+}
+
+function animateFlash( elems, totalMillis, glowFactor ) {
+    
+    var nowMillis = new Date().getTime();
+    var endMillis = nowMillis + totalMillis;
+    var midMillis = endMillis - totalMillis / 2;
+    
+    var oldBackground = elems.cover.style.background;
+    var oldBoxShadow = elems.cover.style.boxShadow;
+    
+    var canceled = false;
+    
+    function cancel() {
+        if ( canceled )
+            return;
+        canceled = true;
+        elems.cover.style.background = oldBackground;
+        elems.cover.style.boxShadow = oldBoxShadow;
+    }
+    
+    animate();
+    function animate() {
+        var nowMillis = new Date().getTime();
+        
+        if ( canceled )
+            return;
+        
+        if ( endMillis <= nowMillis )
+            return void cancel();
+        
+        // NOTE: We leave out any whitespace before ')' so that IE8
+        // can parse the color.
+        var diffMillis = (midMillis - nowMillis) * 2 / totalMillis;
+        var flashWhite = "rgba( 255, 255, 255, " +
+            (1 - diffMillis * diffMillis) * 0.5 + ")";
+        var bounds = elems.container.getBoundingClientRect();
+        var shadowRadiusPx =
+            Math.sqrt( bounds.width * bounds.height ) * glowFactor;
+        elems.cover.style.background = flashWhite;
+        elems.cover.style.boxShadow =
+            "" + flashWhite + " 0 0 " +
+            shadowRadiusPx * 2 + "px " + shadowRadiusPx + "px";
+        
+        requestAnimationFrame( function () {
+            animate();
+        } );
+    }
+    
+    var result = {};
+    result.cancel = function () {
+        cancel();
+    };
+    return result;
 }
 
 addEventListener( "load", function () {
@@ -203,11 +279,32 @@ addEventListener( "load", function () {
     
     var sampleRectangle =
         document.getElementById( "sample-rectangle" );
-    animateShock( {
-        elem: sampleRectangle
-    }, 400, 100, 40 );
+    var sampleRectangleCanvas =
+        document.getElementById( "sample-rectangle-canvas" );
     
+    var currentAnimation = {};
+    currentAnimation.cancel = function () {
+        // Do nothing.
+    };
     
+    document.getElementById( "btn-shock" ).addEventListener( "click",
+        function () {
+        
+        currentAnimation.cancel();
+        currentAnimation = animateShock( {
+            elem: sampleRectangle
+        }, 400, 100, 40 );
+    }, !"capture" );
+    
+    document.getElementById( "btn-flash" ).addEventListener( "click",
+        function () {
+        
+        currentAnimation.cancel();
+        currentAnimation = animateFlash( {
+            container: sampleRectangle,
+            cover: sampleRectangleCanvas
+        }, 100, 0.2 );
+    }, !"capture" );
 }, !"capture" );
 
 })();
@@ -215,7 +312,11 @@ addEventListener( "load", function () {
 </script>
 </head>
 <body>
-<div id="sample-rectangle"></div>
+<div id="sample-rectangle"
+    ><canvas id="sample-rectangle-canvas" width="1" height="1"
+        ></canvas
+    ><img src="lib/elisa-standalone.png" width="204" height="246"
+        /></div>
 <div id="text-to-animate-wrapper"
     ><div id="hide-para-end"></div
     ><div id="hide-line-end"></div
@@ -224,5 +325,7 @@ addEventListener( "load", function () {
         This is some animating text. This is some animating text. This
         is some animating text. This is some animating text. This is
         some animating text. This is some animating text.</div></div>
+<button id="btn-shock">Shock</button>
+<button id="btn-flash">Flash</button>
 </body>
 </html>
