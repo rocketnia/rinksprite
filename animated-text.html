@@ -64,6 +64,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (function () {
 
+
+function setTranslation( elem, x, y ) {
+    // NOTE: We leave out any whitespace before ')' so that IE11 can
+    // parse the translation.
+    elem.style.WebkitTransform =
+    elem.style.transform =
+        "translate( " + x + "px, " + y + "px)";
+}
+function clearTransformation( elem ) {
+    elem.style.WebkitTransform =
+    elem.style.transform =
+        "";
+}
+
+
 function animateText( elems, charactersPerSecond ) {
     if ( elems.textToAnimate.childNodes.length !== 1 )
         throw new Error();
@@ -116,8 +131,12 @@ function animateText( elems, charactersPerSecond ) {
         hideRange.setStart( textNodeToAnimate, i );
         hideRange.setEndAfter( elems.textToAnimateWrapper );
         var hideRects = hideRange.getClientRects();
-        if ( hideRects.length === 0 )
+        if ( hideRects.length === 0 ) {
+            // NOTE: Chrome doesn't get here, but other browsers do.
+            elems.hideParaEnd.style.display = "none";
+            elems.hideLineEnd.style.display = "none";
             return;
+        }
         var hideLineRect = hideRects.item( 0 );
         
         var wrapperRect = elems.textToAnimate.getBoundingClientRect();
@@ -150,18 +169,12 @@ function animateText( elems, charactersPerSecond ) {
 function animateShock(
     elems, totalMillis, updateMillis, squareRadiusPx ) {
     
+    // NOTE: This may clobber the CSS `transform` properties of
+    // `elems.elem`.
+    
     var nowMillis = new Date().getTime();
     var endMillis = nowMillis + totalMillis;
     var nextChangeMillis = nowMillis;
-    
-    var oldTop = elems.elem.style.top;
-    var oldLeft = elems.elem.style.left;
-    var oldRight = elems.elem.style.right;
-    var oldBottom = elems.elem.style.bottom;
-    elems.elem.style.top = "0";
-    elems.elem.style.left = "0";
-    elems.elem.style.right = null;
-    elems.elem.style.bottom = null;
     
     var canceled = false;
     
@@ -169,10 +182,7 @@ function animateShock(
         if ( canceled )
             return;
         canceled = true;
-        elems.elem.style.top = oldTop;
-        elems.elem.style.left = oldLeft;
-        elems.elem.style.right = oldRight;
-        elems.elem.style.bottom = oldBottom;
+        clearTransformation( elems.elem );
     }
     
     animate();
@@ -187,13 +197,10 @@ function animateShock(
         
         if ( nextChangeMillis <= nowMillis ) {
             var randCoord = function () {
-                return "" +
-                    (Math.random() * squareRadiusPx * 2 -
-                        squareRadiusPx) +
-                    "px";
+                return Math.random() * squareRadiusPx * 2 -
+                    squareRadiusPx;
             };
-            elems.elem.style.top = randCoord();
-            elems.elem.style.left = randCoord();
+            setTranslation( elems.elem, randCoord(), randCoord() );
             nextChangeMillis += updateMillis;
         }
         
@@ -238,11 +245,9 @@ function animateFlash( elems, totalMillis, glowFactor ) {
         if ( endMillis <= nowMillis )
             return void cancel();
         
-        // NOTE: We leave out any whitespace before ')' so that IE8
-        // can parse the color.
         var diffMillis = (midMillis - nowMillis) * 2 / totalMillis;
         var flashWhite = "rgba( 255, 255, 255, " +
-            (1 - diffMillis * diffMillis) * 0.5 + ")";
+            (1 - diffMillis * diffMillis) * 0.5 + " )";
         var bounds = elems.container.getBoundingClientRect();
         var shadowRadiusPx =
             Math.sqrt( bounds.width * bounds.height ) * glowFactor;
@@ -439,10 +444,10 @@ addEventListener( "load", function () {
     function addEnterButton( title, ease ) {
         addButton( title, function () {
             return animateEasing( 400, function ( t ) {
-                sampleRectangle.style.WebkitTransform =
-                    "translateX( " + -w * ease( 1 - t ) + "px )";
+                setTranslation(
+                    sampleRectangle, -w * ease( 1 - t ), 0 );
             }, function () {
-                sampleRectangle.style.WebkitTransform = null;
+                clearTransformation( sampleRectangle );
             } );
         } );
     }
@@ -450,10 +455,9 @@ addEventListener( "load", function () {
         addButton( title, function () {
             var bounds = sampleRectangle.getBoundingClientRect();
             return animateEasing( 400, function ( t ) {
-                sampleRectangle.style.WebkitTransform =
-                    "translateX( " + -w * ease( t ) + "px )";
+                setTranslation( sampleRectangle, -w * ease( t ), 0 );
             }, function () {
-                sampleRectangle.style.WebkitTransform = null;
+                clearTransformation( sampleRectangle );
             } );
         } );
     }
