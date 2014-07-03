@@ -263,6 +263,121 @@ function animateFlash( elems, totalMillis, glowFactor ) {
     return result;
 }
 
+function easeLinear( t ) {
+    return t;
+}
+function easeInBackWithCoef( coef ) {
+    return function ( t ) {
+        return t * t * ((coef + 1) * t - coef);
+    };
+}
+function easeInBackWithOvershoot( d ) {
+    
+    // NOTE: The "d" is for "overshoot distance," and it's measured
+    // such that adding it to 1 gives the complete length of the
+    // easing function's range interval.
+    
+    // NOTE: The "c" below is for "overshoot coefficient."
+    // Robert Penner's easing code calls it "s".
+    
+    // The easing function is this function of t for some c:
+    //
+    //   (c + 1) * t * t * t - c * t * t
+    //
+    // We take the derivative with respect to t:
+    //
+    //   3 * (c + 1) * t * t - 2 * c * t
+    //
+    // Then we use the quadratic formula to find the zeros.
+    //
+    //   0
+    //   -2 / 3 * c / (c + 1)
+    //
+    // We plug these values of t into the easing function to get the
+    // local maximum and local minimum at the cubic's two humps:
+    //
+    //   0
+    //   -20 / 27 * c * c * c / (c + 1) / (c + 1)
+    //
+    // What we actually care about is the negation of the local
+    // minimum. This negation is the value we would like to fix as d.
+    //
+    //   d = 20 / 27 * c * c * c / (c + 1) / (c + 1)
+    //
+    // What remains is to solve this for c, which we can do by framing
+    // this as a polynomial (as long as c is not -1). We ask
+    // Wolfram Alpha
+    // "Solve (0 = 20 / 27 * c^3 - d * c^2 + 2 * d * c - d) for c":
+    
+    // TODO: See if we need to handle the case where (5 < d), since
+    // right now Math.sqrt() won't be very helpful in that case.
+    
+    if ( 5 < d )
+        throw new Error();
+    
+    var d2 = d * d;
+    var d3 = d2 * d;
+    var cubeRoot = Math.pow(
+        27 * d3 - 180 * d2 + 200 * d +
+            40 * Math.sqrt( 5 ) * Math.sqrt( 5 * d2 - d3 ),
+        1 / 3 );
+    var c =
+        3 / 20 * cubeRoot - (3240 * d - 729 * d2) / (540 * cubeRoot) +
+            9 * d / 20;
+    
+    return easeInBackWithCoef( c );
+}
+function easeOut( easeIn ) {
+    return function ( t ) {
+        return 1 - easeIn( 1 - t );
+    };
+}
+
+var easeOutBack = easeOut( easeInBackWithCoef( 1.7 ) );
+// TODO: Oops, easeInBackWithOvershoot() actually doesn't work very
+// well. Figure out what's wrong with it.
+//var easeOutBack = easeOut( easeInBackWithOvershoot( 1 / 10 ) );
+
+
+function animateEasing( totalMillis, onFrame, onCancel ) {
+    
+    var startMillis = new Date().getTime();
+    var endMillis = startMillis + totalMillis;
+    
+    var canceled = false;
+    
+    function cancel() {
+        if ( canceled )
+            return;
+        canceled = true;
+        onCancel();
+    }
+    
+    animate();
+    function animate() {
+        var nowMillis = new Date().getTime();
+        
+        if ( canceled )
+            return;
+        
+        if ( endMillis <= nowMillis )
+            return void cancel();
+        
+        onFrame( (nowMillis - startMillis) / totalMillis );
+        
+        requestAnimationFrame( function () {
+            animate();
+        } );
+    }
+    
+    var result = {};
+    result.cancel = function () {
+        cancel();
+    };
+    return result;
+}
+
+
 addEventListener( "load", function () {
     
     var textToAnimateWrapper =
@@ -287,24 +402,40 @@ addEventListener( "load", function () {
         // Do nothing.
     };
     
-    document.getElementById( "btn-shock" ).addEventListener( "click",
-        function () {
-        
-        currentAnimation.cancel();
-        currentAnimation = animateShock( {
+    function addButton( id, makeAnimation ) {
+        document.getElementById( id ).addEventListener( "click",
+            function () {
+            
+            currentAnimation.cancel();
+            currentAnimation = makeAnimation();
+        }, !"capture" );
+    }
+    
+    addButton( "btn-shock", function () {
+        return animateShock( {
             elem: sampleRectangle
         }, 400, 100, 40 );
-    }, !"capture" );
+    } );
     
-    document.getElementById( "btn-flash" ).addEventListener( "click",
-        function () {
-        
-        currentAnimation.cancel();
-        currentAnimation = animateFlash( {
+    addButton( "btn-flash", function () {
+        return animateFlash( {
             container: sampleRectangle,
             cover: sampleRectangleCanvas
         }, 100, 0.2 );
-    }, !"capture" );
+    } );
+    
+    addButton( "btn-enter-back", function () {
+        var bounds = sampleRectangle.getBoundingClientRect();
+        sampleRectangle.style.WebkitTransform =
+            "translateX( " + -bounds.width + " )";
+        return animateEasing( 400, function ( t ) {
+            sampleRectangle.style.WebkitTransform =
+                "translateX( " +
+                    (-bounds.width * (1 - easeOutBack( t ))) + "px )";
+        }, function () {
+            sampleRectangle.style.WebkitTransform = null;
+        } );
+    } );
 }, !"capture" );
 
 })();
@@ -327,5 +458,6 @@ addEventListener( "load", function () {
         some animating text. This is some animating text.</div></div>
 <button id="btn-shock">Shock</button>
 <button id="btn-flash">Flash</button>
+<button id="btn-enter-back">Enter back</button>
 </body>
 </html>
