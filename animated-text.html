@@ -440,7 +440,7 @@ addEventListener( "load", function () {
         addButton( title, function () {
             return animateEasing( 400, function ( t ) {
                 sampleRectangle.style.WebkitTransform =
-                    "translateX( " + -w * (1 - ease( t )) + "px )";
+                    "translateX( " + -w * ease( 1 - t ) + "px )";
             }, function () {
                 sampleRectangle.style.WebkitTransform = null;
             } );
@@ -458,8 +458,8 @@ addEventListener( "load", function () {
         } );
     }
     
-    addEnterButton( "Enter quad", easeOutQuad );
-    addEnterButton( "Enter back", easeOutBack );
+    addEnterButton( "Enter quad", easeInQuad );
+    addEnterButton( "Enter back", easeInBack );
     addExitButton( "Exit quad", easeInQuad );
     addExitButton( "Exit back", easeInBack );
 }, !"capture" );
