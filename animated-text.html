@@ -332,11 +332,20 @@ function easeOut( easeIn ) {
         return 1 - easeIn( 1 - t );
     };
 }
+function easeInPow( pow ) {
+    return function ( t ) {
+        return Math.pow( t, pow );
+    };
+}
 
-var easeOutBack = easeOut( easeInBackWithCoef( 1.7 ) );
+var easeInBack = easeInBackWithCoef( 1.7 );
+var easeOutBack = easeOut( easeInBack );
 // TODO: Oops, easeInBackWithOvershoot() actually doesn't work very
 // well. Figure out what's wrong with it.
 //var easeOutBack = easeOut( easeInBackWithOvershoot( 1 / 10 ) );
+
+var easeInQuad = easeInPow( 2 );
+var easeOutQuad = easeOut( easeInQuad );
 
 
 function animateEasing( totalMillis, onFrame, onCancel ) {
@@ -402,40 +411,57 @@ addEventListener( "load", function () {
         // Do nothing.
     };
     
-    function addButton( id, makeAnimation ) {
-        document.getElementById( id ).addEventListener( "click",
-            function () {
-            
+    var buttons = document.getElementById( "buttons" );
+    function addButton( title, makeAnimation ) {
+        var button = document.createElement( "button" );
+        button.appendChild( document.createTextNode( title ) );
+        button.addEventListener( "click", function () {
             currentAnimation.cancel();
             currentAnimation = makeAnimation();
         }, !"capture" );
+        buttons.appendChild( button );
     }
     
-    addButton( "btn-shock", function () {
+    addButton( "Shock", function () {
         return animateShock( {
             elem: sampleRectangle
         }, 400, 100, 40 );
     } );
     
-    addButton( "btn-flash", function () {
+    addButton( "Flash", function () {
         return animateFlash( {
             container: sampleRectangle,
             cover: sampleRectangleCanvas
         }, 100, 0.2 );
     } );
     
-    addButton( "btn-enter-back", function () {
-        var bounds = sampleRectangle.getBoundingClientRect();
-        sampleRectangle.style.WebkitTransform =
-            "translateX( " + -bounds.width + " )";
-        return animateEasing( 400, function ( t ) {
-            sampleRectangle.style.WebkitTransform =
-                "translateX( " +
-                    (-bounds.width * (1 - easeOutBack( t ))) + "px )";
-        }, function () {
-            sampleRectangle.style.WebkitTransform = null;
+    var w = sampleRectangle.getBoundingClientRect().width;
+    function addEnterButton( title, ease ) {
+        addButton( title, function () {
+            return animateEasing( 400, function ( t ) {
+                sampleRectangle.style.WebkitTransform =
+                    "translateX( " + -w * (1 - ease( t )) + "px )";
+            }, function () {
+                sampleRectangle.style.WebkitTransform = null;
+            } );
         } );
-    } );
+    }
+    function addExitButton( title, ease ) {
+        addButton( title, function () {
+            var bounds = sampleRectangle.getBoundingClientRect();
+            return animateEasing( 400, function ( t ) {
+                sampleRectangle.style.WebkitTransform =
+                    "translateX( " + -w * ease( t ) + "px )";
+            }, function () {
+                sampleRectangle.style.WebkitTransform = null;
+            } );
+        } );
+    }
+    
+    addEnterButton( "Enter quad", easeOutQuad );
+    addEnterButton( "Enter back", easeOutBack );
+    addExitButton( "Exit quad", easeInQuad );
+    addExitButton( "Exit back", easeInBack );
 }, !"capture" );
 
 })();
@@ -456,8 +482,6 @@ addEventListener( "load", function () {
         This is some animating text. This is some animating text. This
         is some animating text. This is some animating text. This is
         some animating text. This is some animating text.</div></div>
-<button id="btn-shock">Shock</button>
-<button id="btn-flash">Flash</button>
-<button id="btn-enter-back">Enter back</button>
+<div id="buttons"></div>
 </body>
 </html>
