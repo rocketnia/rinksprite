@@ -68,6 +68,17 @@ var _ = rocketnia.lathe;
 (function () {
 
 
+function setStyles( el, styleObj ) {
+    return _.objAcc( function ( y ) {
+        _.objOwnEach( styleObj, function ( k, v ) {
+            y( k, el.style[ k ] );
+        } );
+        _.objOwnEach( styleObj, function ( k, v ) {
+            el.style[ k ] = v;
+        } );
+    } );
+}
+
 function setTranslation( elem, x, y ) {
     // NOTE: We leave out any whitespace before ')' so that IE11 can
     // parse the translation.
@@ -123,10 +134,22 @@ function animateText( elems, charactersPerSecond ) {
     if ( textNodeToAnimate.nodeType !== document.TEXT_NODE )
         throw new Error();
     
-    elems.hideParaEnd.style.backgroundColor = "white";
-    elems.hideParaEnd.style.position = "absolute";
-    elems.hideLineEnd.style.backgroundColor = "white";
-    elems.hideLineEnd.style.position = "absolute";
+    var origParaEndStyles = setStyles( elems.hideParaEnd, {
+        backgroundColor: "white",
+        position: "absolute",
+        top: "",
+        left: "",
+        height: "",
+        width: ""
+    } );
+    var origLineEndStyles = setStyles( elems.hideLineEnd, {
+        backgroundColor: "white",
+        position: "absolute",
+        top: "",
+        left: "",
+        height: "",
+        width: ""
+    } );
     
     var charactersPerSecond = 100;
     var textIndex = 0;
@@ -166,34 +189,30 @@ function animateText( elems, charactersPerSecond ) {
         var hideRects = hideRange.getClientRects();
         if ( hideRects.length === 0 ) {
             // NOTE: Chrome doesn't get here, but other browsers do.
-            elems.hideParaEnd.style.display = "none";
-            elems.hideLineEnd.style.display = "none";
             return void result.cancel();
         }
         var hideLineRect = hideRects.item( 0 );
         
         var wrapperRect = elems.textToAnimate.getBoundingClientRect();
         
-        elems.hideParaEnd.style.top =
-            (hideLineRect.bottom - wrapperRect.top) + "px";
-        elems.hideParaEnd.style.left = "0px";
-        elems.hideParaEnd.style.height =
-            (wrapperRect.bottom - hideLineRect.bottom) + "px";
-        elems.hideParaEnd.style.width = wrapperRect.width + "px";
-        
-        elems.hideLineEnd.style.top =
-            (hideLineRect.top - wrapperRect.top) + "px";
-        elems.hideLineEnd.style.left =
-            (hideLineRect.left - wrapperRect.left) + "px";
-        elems.hideLineEnd.style.height =
-            (wrapperRect.bottom - hideLineRect.top) + "px";
-        elems.hideLineEnd.style.width =
-            (wrapperRect.right - hideLineRect.left) + "px";
+        setStyles( elems.hideParaEnd, {
+            top: (hideLineRect.bottom - wrapperRect.top) + "px",
+            left: "0px",
+            height: (wrapperRect.bottom - hideLineRect.bottom) + "px",
+            width: wrapperRect.width + "px"
+        } );
+        setStyles( elems.hideLineEnd, {
+            top: (hideLineRect.top - wrapperRect.top) + "px",
+            left: (hideLineRect.left - wrapperRect.left) + "px",
+            height: (wrapperRect.bottom - hideLineRect.top) + "px",
+            width: (wrapperRect.right - hideLineRect.left) + "px"
+        } );
         
         if ( i === textNodeToAnimate.data.length )
             return void result.cancel();
     }, function () {  // onCancel
-        // TODO: Implement this.
+        setStyles( elems.hideParaEnd, origParaEndStyles );
+        setStyles( elems.hideLineEnd, origLineEndStyles );
     } );
     return result;
 }
@@ -224,8 +243,10 @@ function animateShock(
 }
 
 function animateFlash( elems, totalMillis, glowFactor ) {
-    var oldBackground = elems.cover.style.background;
-    var oldBoxShadow = elems.cover.style.boxShadow;
+    var oldStyles = setStyles( elems.cover, {
+        background: "",
+        boxShadow: ""
+    } );
     var result = animateForever( function ( elapsedMillis ) {
         if ( totalMillis <= elapsedMillis )
             return void result.cancel();
@@ -236,13 +257,14 @@ function animateFlash( elems, totalMillis, glowFactor ) {
         var bounds = elems.container.getBoundingClientRect();
         var shadowRadiusPx =
             Math.sqrt( bounds.width * bounds.height ) * glowFactor;
-        elems.cover.style.background = flashWhite;
-        elems.cover.style.boxShadow =
-            "" + flashWhite + " 0 0 " +
-            shadowRadiusPx * 2 + "px " + shadowRadiusPx + "px";
+        setStyles( elems.cover, {
+            background: flashWhite,
+            boxShadow:
+                "" + flashWhite + " 0 0 " +
+                shadowRadiusPx * 2 + "px " + shadowRadiusPx + "px"
+        } );
     }, function () {  // onCancel
-        elems.cover.style.background = oldBackground;
-        elems.cover.style.boxShadow = oldBoxShadow;
+        setStyles( elems.cover, oldStyles );
     } );
     return result;
 }
@@ -392,22 +414,18 @@ addEventListener( "load", function () {
     var hideParaEnd = document.getElementById( "hide-para-end" );
     var hideLineEnd = document.getElementById( "hide-line-end" );
     var textToAnimate = document.getElementById( "text-to-animate" );
-    animateText( {
-        textToAnimateWrapper: textToAnimateWrapper,
-        hideParaEnd: hideParaEnd,
-        hideLineEnd: hideLineEnd,
-        textToAnimate: textToAnimate
-    }, 100 );
     
     var sampleRectangle =
         document.getElementById( "sample-rectangle" );
     var sampleRectangleCanvas =
         document.getElementById( "sample-rectangle-canvas" );
     
-    var currentAnimation = {};
-    currentAnimation.cancel = function () {
-        // Do nothing.
-    };
+    var currentAnimation = animateText( {
+        textToAnimateWrapper: textToAnimateWrapper,
+        hideParaEnd: hideParaEnd,
+        hideLineEnd: hideLineEnd,
+        textToAnimate: textToAnimate
+    }, 100 );
     
     var buttons = document.getElementById( "buttons" );
     function addButton( title, makeAnimation ) {
@@ -479,6 +497,15 @@ addEventListener( "load", function () {
                 }, 400, 100, 40 );
             }
         } ] ).play();
+    } );
+    
+    addButton( "Animate text", function () {
+        return animateText( {
+            textToAnimateWrapper: textToAnimateWrapper,
+            hideParaEnd: hideParaEnd,
+            hideLineEnd: hideLineEnd,
+            textToAnimate: textToAnimate
+        }, 100 );
     } );
 }, !"capture" );
 
