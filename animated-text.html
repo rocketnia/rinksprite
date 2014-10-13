@@ -82,6 +82,40 @@ function clearTransformation( elem ) {
 }
 
 
+function animateForever( onFrame, onCancel ) {
+    
+    var startMillis = new Date().getTime();
+    
+    var canceled = false;
+    
+    function cancel() {
+        if ( canceled )
+            return;
+        canceled = true;
+        onCancel();
+    }
+    
+    animate();
+    function animate() {
+        requestAnimationFrame( function () {
+            var nowMillis = new Date().getTime();
+            
+            if ( canceled )
+                return;
+            
+            onFrame( nowMillis - startMillis );
+            
+            animate();
+        } );
+    }
+    
+    var result = {};
+    result.cancel = function () {
+        cancel();
+    };
+    return result;
+}
+
 function animateText( elems, charactersPerSecond ) {
     if ( elems.textToAnimate.childNodes.length !== 1 )
         throw new Error();
@@ -96,15 +130,11 @@ function animateText( elems, charactersPerSecond ) {
     
     var charactersPerSecond = 100;
     var textIndex = 0;
-    var startMillis = Date.now();
     
-    animate();
-    function animate() {
-        var nowMillis = Date.now();
+    var result = animateForever( function ( elapsedMillis ) {
         var charactersToConsume =
             Math.min( textNodeToAnimate.data.length,
-                ~~((nowMillis - startMillis) * charactersPerSecond /
-                    1000) );
+                ~~(elapsedMillis * charactersPerSecond / 1000) );
         var inWhitespace = true;
         var beenOutOfWhitespace = false;
         var n = textNodeToAnimate.data.length;
@@ -138,7 +168,7 @@ function animateText( elems, charactersPerSecond ) {
             // NOTE: Chrome doesn't get here, but other browsers do.
             elems.hideParaEnd.style.display = "none";
             elems.hideLineEnd.style.display = "none";
-            return;
+            return void result.cancel();
         }
         var hideLineRect = hideRects.item( 0 );
         
@@ -161,50 +191,10 @@ function animateText( elems, charactersPerSecond ) {
             (wrapperRect.right - hideLineRect.left) + "px";
         
         if ( i === textNodeToAnimate.data.length )
-            return;
-        
-        requestAnimationFrame( function () {
-            animate();
-        } );
-    }
-    
-    var result = {};
-    result.cancel = function () {
-    };
-    return result;
-}
-
-function animateForever( onFrame, onCancel ) {
-    
-    var startMillis = new Date().getTime();
-    
-    var canceled = false;
-    
-    function cancel() {
-        if ( canceled )
-            return;
-        canceled = true;
-        onCancel();
-    }
-    
-    animate();
-    function animate() {
-        requestAnimationFrame( function () {
-            var nowMillis = new Date().getTime();
-            
-            if ( canceled )
-                return;
-            
-            onFrame( nowMillis - startMillis );
-            
-            animate();
-        } );
-    }
-    
-    var result = {};
-    result.cancel = function () {
-        cancel();
-    };
+            return void result.cancel();
+    }, function () {  // onCancel
+        // TODO: Implement this.
+    } );
     return result;
 }
 
