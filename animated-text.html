@@ -167,17 +167,16 @@ function animateText( elems, charactersPerSecond ) {
             animate();
         } );
     }
+    
+    var result = {};
+    result.cancel = function () {
+    };
+    return result;
 }
 
-function animateShock(
-    elems, totalMillis, updateMillis, squareRadiusPx ) {
+function animateForever( onFrame, onCancel ) {
     
-    // NOTE: This may clobber the CSS `transform` properties of
-    // `elems.elem`.
-    
-    var nowMillis = new Date().getTime();
-    var endMillis = nowMillis + totalMillis;
-    var nextChangeMillis = nowMillis;
+    var startMillis = new Date().getTime();
     
     var canceled = false;
     
@@ -185,29 +184,19 @@ function animateShock(
         if ( canceled )
             return;
         canceled = true;
-        clearTransformation( elems.elem );
+        onCancel();
     }
     
     animate();
     function animate() {
-        var nowMillis = new Date().getTime();
-        
-        if ( canceled )
-            return;
-        
-        if ( endMillis <= nowMillis )
-            return void cancel();
-        
-        if ( nextChangeMillis <= nowMillis ) {
-            var randCoord = function () {
-                return Math.random() * squareRadiusPx * 2 -
-                    squareRadiusPx;
-            };
-            setTranslation( elems.elem, randCoord(), randCoord() );
-            nextChangeMillis += updateMillis;
-        }
-        
         requestAnimationFrame( function () {
+            var nowMillis = new Date().getTime();
+            
+            if ( canceled )
+                return;
+            
+            onFrame( nowMillis - startMillis );
+            
             animate();
         } );
     }
@@ -219,36 +208,39 @@ function animateShock(
     return result;
 }
 
+function animateShock(
+    elems, totalMillis, updateMillis, squareRadiusPx ) {
+    
+    // NOTE: This may clobber the CSS `transform` properties of
+    // `elems.elem`.
+    
+    var nextChangeMillis = 0;
+    var result = animateForever( function ( elapsedMillis ) {
+        if ( totalMillis <= elapsedMillis )
+            return void result.cancel();
+        
+        if ( nextChangeMillis <= elapsedMillis ) {
+            var randCoord = function () {
+                return Math.random() * squareRadiusPx * 2 -
+                    squareRadiusPx;
+            };
+            setTranslation( elems.elem, randCoord(), randCoord() );
+            nextChangeMillis += updateMillis;
+        }
+    }, function () {  // onCancel
+        clearTransformation( elems.elem );
+    } );
+    return result;
+}
+
 function animateFlash( elems, totalMillis, glowFactor ) {
-    
-    var nowMillis = new Date().getTime();
-    var endMillis = nowMillis + totalMillis;
-    var midMillis = endMillis - totalMillis / 2;
-    
     var oldBackground = elems.cover.style.background;
     var oldBoxShadow = elems.cover.style.boxShadow;
-    
-    var canceled = false;
-    
-    function cancel() {
-        if ( canceled )
-            return;
-        canceled = true;
-        elems.cover.style.background = oldBackground;
-        elems.cover.style.boxShadow = oldBoxShadow;
-    }
-    
-    animate();
-    function animate() {
-        var nowMillis = new Date().getTime();
+    var result = animateForever( function ( elapsedMillis ) {
+        if ( totalMillis <= elapsedMillis )
+            return void result.cancel();
         
-        if ( canceled )
-            return;
-        
-        if ( endMillis <= nowMillis )
-            return void cancel();
-        
-        var diffMillis = (midMillis - nowMillis) * 2 / totalMillis;
+        var diffMillis = 1 - 2 * elapsedMillis / totalMillis;
         var flashWhite = "rgba( 255, 255, 255, " +
             (1 - diffMillis * diffMillis) * 0.5 + " )";
         var bounds = elems.container.getBoundingClientRect();
@@ -258,16 +250,10 @@ function animateFlash( elems, totalMillis, glowFactor ) {
         elems.cover.style.boxShadow =
             "" + flashWhite + " 0 0 " +
             shadowRadiusPx * 2 + "px " + shadowRadiusPx + "px";
-        
-        requestAnimationFrame( function () {
-            animate();
-        } );
-    }
-    
-    var result = {};
-    result.cancel = function () {
-        cancel();
-    };
+    }, function () {  // onCancel
+        elems.cover.style.background = oldBackground;
+        elems.cover.style.boxShadow = oldBoxShadow;
+    } );
     return result;
 }
 
@@ -357,40 +343,6 @@ var easeOutLinear = easeOut( easeInLinear );
 var easeInQuad = easeInPow( 2 );
 var easeOutQuad = easeOut( easeInQuad );
 
-
-function animateForever( onFrame, onCancel ) {
-    
-    var startMillis = new Date().getTime();
-    
-    var canceled = false;
-    
-    function cancel() {
-        if ( canceled )
-            return;
-        canceled = true;
-        onCancel();
-    }
-    
-    animate();
-    function animate() {
-        var nowMillis = new Date().getTime();
-        
-        if ( canceled )
-            return;
-        
-        onFrame( nowMillis - startMillis );
-        
-        requestAnimationFrame( function () {
-            animate();
-        } );
-    }
-    
-    var result = {};
-    result.cancel = function () {
-        cancel();
-    };
-    return result;
-}
 
 function animateEasing( totalMillis, onFrame, onCancel ) {
     var result = animateForever( function ( elapsedMillis ) {
