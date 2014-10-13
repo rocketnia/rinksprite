@@ -60,7 +60,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     text-shadow: 2px 1px 2px rgba( 0, 0, 0, 0.3 );
 }
 </style>
+<script type="text/javascript" src="lib/lathe.js"></script>
 <script type="text/javascript">"use strict";
+
+var _ = rocketnia.lathe;
 
 (function () {
 
@@ -349,14 +352,15 @@ var easeOutBack = easeOut( easeInBack );
 // well. Figure out what's wrong with it.
 //var easeOutBack = easeOut( easeInBackWithOvershoot( 1 / 10 ) );
 
+var easeInLinear = easeInPow( 1 );
+var easeOutLinear = easeOut( easeInLinear );
 var easeInQuad = easeInPow( 2 );
 var easeOutQuad = easeOut( easeInQuad );
 
 
-function animateEasing( totalMillis, onFrame, onCancel ) {
+function animateForever( onFrame, onCancel ) {
     
     var startMillis = new Date().getTime();
-    var endMillis = startMillis + totalMillis;
     
     var canceled = false;
     
@@ -374,10 +378,7 @@ function animateEasing( totalMillis, onFrame, onCancel ) {
         if ( canceled )
             return;
         
-        if ( endMillis <= nowMillis )
-            return void cancel();
-        
-        onFrame( (nowMillis - startMillis) / totalMillis );
+        onFrame( nowMillis - startMillis );
         
         requestAnimationFrame( function () {
             animate();
@@ -387,6 +388,56 @@ function animateEasing( totalMillis, onFrame, onCancel ) {
     var result = {};
     result.cancel = function () {
         cancel();
+    };
+    return result;
+}
+
+function animateEasing( totalMillis, onFrame, onCancel ) {
+    var result = animateForever( function ( elapsedMillis ) {
+        if ( totalMillis <= elapsedMillis )
+            return void result.cancel();
+        
+        onFrame( elapsedMillis / totalMillis );
+    }, onCancel );
+    return result;
+}
+
+
+function combineHotspotAnimations( anims ) {
+    
+    // Sort the animations by the durations to their hotspots, with
+    // the longest durations first.
+    anims = anims.slice().sort( function ( a, b ) {
+        return b.hotspot - a.hotspot;
+    } );
+    
+    var furthestAwayHotspot =
+        anims.length === 0 ? 0 : anims[ 0 ].hotspot;
+    
+    var result = {};
+    result.hotspot = furthestAwayHotspot;
+    result.play = function () {
+        var remaining = anims.slice();
+        var spawned = [];
+        
+        var spawner = animateForever( function ( elapsedMillis ) {
+            if ( remaining.length === 0 )
+                spawner.cancel();
+            else if ( furthestAwayHotspot - remaining[ 0 ].hotspot <=
+                elapsedMillis )
+                spawned.push( remaining.shift().play() );
+        }, function () {  // onCancel
+            // Do nothing.
+        } );
+        
+        var result = {};
+        result.cancel = function () {
+            spawner.cancel();
+            _.arrEach( spawned, function ( it ) {
+                it.cancel();
+            } );
+        };
+        return result;
     };
     return result;
 }
@@ -441,24 +492,29 @@ addEventListener( "load", function () {
     } );
     
     var w = sampleRectangle.getBoundingClientRect().width;
+    function animateEnter( totalMillis, ease ) {
+        return animateEasing( totalMillis, function ( t ) {
+            setTranslation(
+                sampleRectangle, -w * ease( 1 - t ), 0 );
+        }, function () {
+            clearTransformation( sampleRectangle );
+        } );
+    }
+    function animateExit( totalMillis, ease ) {
+        return animateEasing( totalMillis, function ( t ) {
+            setTranslation( sampleRectangle, -w * ease( t ), 0 );
+        }, function () {
+            clearTransformation( sampleRectangle );
+        } );
+    }
     function addEnterButton( title, ease ) {
         addButton( title, function () {
-            return animateEasing( 400, function ( t ) {
-                setTranslation(
-                    sampleRectangle, -w * ease( 1 - t ), 0 );
-            }, function () {
-                clearTransformation( sampleRectangle );
-            } );
+            return animateEnter( 400, ease );
         } );
     }
     function addExitButton( title, ease ) {
         addButton( title, function () {
-            var bounds = sampleRectangle.getBoundingClientRect();
-            return animateEasing( 400, function ( t ) {
-                setTranslation( sampleRectangle, -w * ease( t ), 0 );
-            }, function () {
-                clearTransformation( sampleRectangle );
-            } );
+            return animateExit( 400, ease );
         } );
     }
     
@@ -466,6 +522,22 @@ addEventListener( "load", function () {
     addEnterButton( "Enter back", easeInBack );
     addExitButton( "Exit quad", easeInQuad );
     addExitButton( "Exit back", easeInBack );
+    
+    addButton( "Enter and shock", function () {
+        return combineHotspotAnimations( [ {
+            hotspot: 400,
+            play: function () {
+                return animateEnter( 400, easeInLinear );
+            }
+        }, {
+            hotspot: 0,
+            play: function () {
+                return animateShock( {
+                    elem: sampleRectangle
+                }, 400, 100, 40 );
+            }
+        } ] ).play();
+    } );
 }, !"capture" );
 
 })();
