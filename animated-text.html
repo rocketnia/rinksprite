@@ -55,6 +55,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     height: 100%;
 }
 #text-to-animate-wrapper {
+    background: white;
     position: relative;
     font-family: sans-serif;
     text-shadow: 2px 1px 2px rgba( 0, 0, 0, 0.3 );
@@ -420,12 +421,16 @@ addEventListener( "load", function () {
     var sampleRectangleCanvas =
         document.getElementById( "sample-rectangle-canvas" );
     
-    var currentAnimation = animateText( {
-        textToAnimateWrapper: textToAnimateWrapper,
-        hideParaEnd: hideParaEnd,
-        hideLineEnd: hideLineEnd,
-        textToAnimate: textToAnimate
-    }, 100 );
+    function animateMainText() {
+        return animateText( {
+            textToAnimateWrapper: textToAnimateWrapper,
+            hideParaEnd: hideParaEnd,
+            hideLineEnd: hideLineEnd,
+            textToAnimate: textToAnimate
+        }, 100 );
+    }
+    
+    var currentAnimation = animateMainText();
     
     var buttons = document.getElementById( "buttons" );
     function addButton( title, makeAnimation ) {
@@ -485,9 +490,9 @@ addEventListener( "load", function () {
     
     addButton( "Enter and shock", function () {
         return combineHotspotAnimations( [ {
-            hotspot: 400,
+            hotspot: 200,
             play: function () {
-                return animateEnter( 400, easeInLinear );
+                return animateEnter( 200, easeInLinear );
             }
         }, {
             hotspot: 0,
@@ -500,12 +505,36 @@ addEventListener( "load", function () {
     } );
     
     addButton( "Animate text", function () {
-        return animateText( {
-            textToAnimateWrapper: textToAnimateWrapper,
-            hideParaEnd: hideParaEnd,
-            hideLineEnd: hideLineEnd,
-            textToAnimate: textToAnimate
-        }, 100 );
+        return animateMainText();
+    } );
+    
+    addButton( "Everything", function () {
+        return combineHotspotAnimations( [ {
+            hotspot: 200,
+            play: function () {
+                return animateEnter( 200, easeInLinear );
+            }
+        }, {
+            hotspot: 0,
+            play: function () {
+                return animateShock( {
+                    elem: sampleRectangle
+                }, 400, 100, 40 );
+            }
+        }, {
+            hotspot: 50,
+            play: function () {
+                return animateFlash( {
+                    container: sampleRectangle,
+                    cover: sampleRectangleCanvas
+                }, 100, 0.2 );
+            }
+        }, {
+            hotspot: 0,
+            play: function () {
+                return animateMainText();
+            }
+        } ] ).play();
     } );
 }, !"capture" );
 
