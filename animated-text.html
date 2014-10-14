@@ -94,7 +94,7 @@ function clearTransformation( elem ) {
 }
 
 
-function animateForever( onFrame, onCancel ) {
+function animateFor( totalMillis, onFrame, onCancel ) {
     
     var startMillis = new Date().getTime();
     
@@ -115,7 +115,12 @@ function animateForever( onFrame, onCancel ) {
             if ( canceled )
                 return;
             
-            onFrame( nowMillis - startMillis );
+            var elapsedMillis = nowMillis - startMillis;
+            
+            if ( totalMillis <= elapsedMillis )
+                return void cancel();
+            
+            onFrame( elapsedMillis );
             
             animate();
         } );
@@ -155,7 +160,7 @@ function animateText( elems, charactersPerSecond ) {
     var charactersPerSecond = 100;
     var textIndex = 0;
     
-    var result = animateForever( function ( elapsedMillis ) {
+    var result = animateFor( 1 / 0, function ( elapsedMillis ) {
         var charactersToConsume =
             Math.min( textNodeToAnimate.data.length,
                 ~~(elapsedMillis * charactersPerSecond / 1000) );
@@ -225,10 +230,7 @@ function animateShock(
     // `elems.elem`.
     
     var nextChangeMillis = 0;
-    var result = animateForever( function ( elapsedMillis ) {
-        if ( totalMillis <= elapsedMillis )
-            return void result.cancel();
-        
+    return animateFor( totalMillis, function ( elapsedMillis ) {
         if ( nextChangeMillis <= elapsedMillis ) {
             var randCoord = function () {
                 return Math.random() * squareRadiusPx * 2 -
@@ -240,7 +242,6 @@ function animateShock(
     }, function () {  // onCancel
         clearTransformation( elems.elem );
     } );
-    return result;
 }
 
 function animateFlash( elems, totalMillis, glowFactor ) {
@@ -248,10 +249,7 @@ function animateFlash( elems, totalMillis, glowFactor ) {
         background: "",
         boxShadow: ""
     } );
-    var result = animateForever( function ( elapsedMillis ) {
-        if ( totalMillis <= elapsedMillis )
-            return void result.cancel();
-        
+    return animateFor( totalMillis, function ( elapsedMillis ) {
         var diffMillis = 1 - 2 * elapsedMillis / totalMillis;
         var flashWhite = "rgba( 255, 255, 255, " +
             (1 - diffMillis * diffMillis) * 0.5 + " )";
@@ -267,7 +265,6 @@ function animateFlash( elems, totalMillis, glowFactor ) {
     }, function () {  // onCancel
         setStyles( elems.cover, oldStyles );
     } );
-    return result;
 }
 
 function easeLinear( t ) {
@@ -358,13 +355,9 @@ var easeOutQuad = easeOut( easeInQuad );
 
 
 function animateEasing( totalMillis, onFrame, onCancel ) {
-    var result = animateForever( function ( elapsedMillis ) {
-        if ( totalMillis <= elapsedMillis )
-            return void result.cancel();
-        
+    return animateFor( totalMillis, function ( elapsedMillis ) {
         onFrame( elapsedMillis / totalMillis );
     }, onCancel );
-    return result;
 }
 
 
@@ -385,7 +378,7 @@ function combineHotspotAnimations( anims ) {
         var remaining = anims.slice();
         var spawned = [];
         
-        var spawner = animateForever( function ( elapsedMillis ) {
+        var spawner = animateFor( 1 / 0, function ( elapsedMillis ) {
             if ( remaining.length === 0 )
                 spawner.cancel();
             else if ( furthestAwayHotspot - remaining[ 0 ].hotspot <=
