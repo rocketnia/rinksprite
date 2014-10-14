@@ -69,28 +69,29 @@ var _ = rocketnia.lathe;
 (function () {
 
 
-function setStyles( el, styleObj ) {
+function setStyles( elem, styleObj ) {
     return _.objAcc( function ( y ) {
         _.objOwnEach( styleObj, function ( k, v ) {
-            y( k, el.style[ k ] );
+            y( k, elem.style[ k ] );
         } );
         _.objOwnEach( styleObj, function ( k, v ) {
-            el.style[ k ] = v;
+            elem.style[ k ] = v;
         } );
+    } );
+}
+
+function setTransform( elem, transform ) {
+    return setStyles( elem, {
+        WebkitTransform: transform,
+        transform: transform
     } );
 }
 
 function setTranslation( elem, x, y ) {
     // NOTE: We leave out any whitespace before ')' so that IE11 can
     // parse the translation.
-    elem.style.WebkitTransform =
-    elem.style.transform =
-        "translate( " + x + "px, " + y + "px)";
-}
-function clearTransformation( elem ) {
-    elem.style.WebkitTransform =
-    elem.style.transform =
-        "";
+    return setTransform( elem,
+        "translate( " + x + "px, " + y + "px)" );
 }
 
 
@@ -226,9 +227,7 @@ function animateText( elems, charactersPerSecond ) {
 function animateShock(
     elems, totalMillis, updateMillis, squareRadiusPx ) {
     
-    // NOTE: This may clobber the CSS `transform` properties of
-    // `elems.elem`.
-    
+    var oldStyles = setTransform( elems.elem, "" );
     var nextChangeMillis = 0;
     return animateFor( totalMillis, function ( elapsedMillis ) {
         if ( nextChangeMillis <= elapsedMillis ) {
@@ -240,7 +239,7 @@ function animateShock(
             nextChangeMillis += updateMillis;
         }
     }, function () {  // onCancel
-        clearTransformation( elems.elem );
+        setStyles( elems.elem, oldStyles );
     } );
 }
 
@@ -400,6 +399,28 @@ function combineHotspotAnimations( anims ) {
     return result;
 }
 
+function animateExclusiveSequence(
+    firstDurationMillis, playFirst, playSecond ) {
+    
+    var canceled = false;
+    var animation = playFirst();
+    animateFor( firstDurationMillis, function ( elapsedMillis ) {
+        // Do nothing.
+    }, function () {  // onCancel
+        if ( canceled )
+            return;
+        animation.cancel();
+        animation = playSecond();
+    } );
+    
+    var result = {};
+    result.cancel = function () {
+        canceled = true;
+        animation.cancel();
+    };
+    return result;
+}
+
 
 addEventListener( "load", function () {
     
@@ -451,18 +472,20 @@ addEventListener( "load", function () {
     
     var w = sampleRectangle.getBoundingClientRect().width;
     function animateEnter( totalMillis, ease ) {
+        var oldStyles = setTransform( sampleRectangle, "" );
         return animateEasing( totalMillis, function ( t ) {
             setTranslation(
                 sampleRectangle, -w * ease( 1 - t ), 0 );
         }, function () {
-            clearTransformation( sampleRectangle );
+            setStyles( sampleRectangle, oldStyles );
         } );
     }
     function animateExit( totalMillis, ease ) {
+        var oldStyles = setTransform( sampleRectangle, "" );
         return animateEasing( totalMillis, function ( t ) {
             setTranslation( sampleRectangle, -w * ease( t ), 0 );
         }, function () {
-            clearTransformation( sampleRectangle );
+            setStyles( sampleRectangle, oldStyles );
         } );
     }
     function addEnterButton( title, ease ) {
@@ -481,20 +504,22 @@ addEventListener( "load", function () {
     addExitButton( "Exit quad", easeInQuad );
     addExitButton( "Exit back", easeInBack );
     
+    function animateEnterAndShock() {
+        // NOTE: We have to put these in sequence because otherwise
+        // `animateShock` might save the transformation values that
+        // existed during the last moments of `animateEnter` and
+        // thereby restore the wrong position when it completes.
+        return animateExclusiveSequence( 200, function () {
+            return animateEnter( 200, easeInLinear );
+        }, function () {
+            return animateShock( {
+                elem: sampleRectangle
+            }, 400, 100, 40 );
+        } );
+    }
+    
     addButton( "Enter and shock", function () {
-        return combineHotspotAnimations( [ {
-            hotspot: 200,
-            play: function () {
-                return animateEnter( 200, easeInLinear );
-            }
-        }, {
-            hotspot: 0,
-            play: function () {
-                return animateShock( {
-                    elem: sampleRectangle
-                }, 400, 100, 40 );
-            }
-        } ] ).play();
+        return animateEnterAndShock();
     } );
     
     addButton( "Animate text", function () {
@@ -505,14 +530,7 @@ addEventListener( "load", function () {
         return combineHotspotAnimations( [ {
             hotspot: 200,
             play: function () {
-                return animateEnter( 200, easeInLinear );
-            }
-        }, {
-            hotspot: 0,
-            play: function () {
-                return animateShock( {
-                    elem: sampleRectangle
-                }, 400, 100, 40 );
+                return animateEnterAndShock();
             }
         }, {
             hotspot: 50,
