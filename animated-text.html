@@ -60,6 +60,44 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     font-family: sans-serif;
     text-shadow: 2px 1px 2px rgba( 0, 0, 0, 0.3 );
 }
+
+/*
+#sample-rectangle, #text-to-animate-wrapper, #buttons {
+    display: none;
+}
+*/
+
+.stage {
+    height: 150px;
+    width: 500px;
+    position: relative;
+    background: rgb(24, 128, 196);
+}
+.stylish-text-wrapper {
+    position: absolute;
+    bottom: 0;
+    padding: 2px 0 0 0;
+    background: black;
+}
+.stylish-text-wrapper > div {
+    padding: 5px 5px 0 5px;
+    border-radius: 10px 10px 0 0;
+    background: linear-gradient(to bottom,
+        rgb(255, 84, 69) 50%,
+        rgb(146, 50, 62) 100%);
+}
+.stylish-text-wrapper > div > div {
+    padding: 5px 5px 15px 5px;
+    border-radius: 5px 5px 0 0;
+    background: white;
+}
+.stylish-text-wrapper > div > div:after {
+    content: "v";
+    position: absolute;
+    bottom: 3px;
+    right: 10px;
+}
+
 </style>
 <script type="text/javascript" src="lib/lathe.js"></script>
 <script type="text/javascript" src="sample-conversation.js"></script>
@@ -569,5 +607,24 @@ addEventListener( "load", function () {
         is some animating text. This is some animating text. This is
         some animating text. This is some animating text.</div></div>
 <div id="buttons"></div>
+<div class="stage">
+    <div class="stylish-text-wrapper"><div><div>
+<!--
+        This is some static text. This is some static text. This is some
+        static text. This is some static text. This is some static text.
+        This is some static text. This is some static text. This is some
+        static text.</div></div></div>
+-->
+        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+        l l l l l l</div></div></div>
+</div>
 </body>
 </html>
