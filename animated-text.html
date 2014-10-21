@@ -54,15 +54,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     width: 100%;
     height: 100%;
 }
-#text-to-animate-wrapper {
-    background: white;
+#text-to-animate {
     position: relative;
     font-family: sans-serif;
-    text-shadow: 2px 1px 2px rgba( 0, 0, 0, 0.3 );
+    text-shadow: 2px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 /*
-#sample-rectangle, #text-to-animate-wrapper, #buttons {
+#sample-rectangle, #text-to-animate, #buttons {
     display: none;
 }
 */
@@ -72,6 +71,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     width: 500px;
     position: relative;
     background: rgb(24, 128, 196);
+    font-family: sans-serif;
+    text-shadow: 2px 1px 2px rgba(0, 0, 0, 0.3);
 }
 .stylish-text-wrapper {
     position: absolute;
@@ -92,10 +93,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     background: white;
 }
 .stylish-text-wrapper > div > div:after {
-    content: "v";
+    content: "";
     position: absolute;
-    bottom: 3px;
+    bottom: 4px;
     right: 10px;
+    border-top: 9px solid black;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+}
+.stylish-text-wrapper > div > div > div {
+    position: relative;
 }
 
 </style>
@@ -463,11 +470,14 @@ function animateExclusiveSequence(
 
 addEventListener( "load", function () {
     
-    var textToAnimateWrapper =
-        document.getElementById( "text-to-animate-wrapper" );
-    var hideParaEnd = document.getElementById( "hide-para-end" );
-    var hideLineEnd = document.getElementById( "hide-line-end" );
-    var textToAnimate = document.getElementById( "text-to-animate" );
+    var textToAnimateWrapper = document.querySelector(
+        "#text-to-animate" );
+    var hideParaEnd = document.querySelector(
+        "#text-to-animate > div > div > div > .hide-para-end" );
+    var hideLineEnd = document.querySelector(
+        "#text-to-animate > div > div > div > .hide-line-end" );
+    var textToAnimate = document.querySelector(
+        "#text-to-animate > div > div > div > .text-to-animate" );
     
     var sampleRectangle =
         document.getElementById( "sample-rectangle" );
@@ -598,33 +608,40 @@ addEventListener( "load", function () {
         ></canvas
     ><img src="lib/elisa-standalone.png" width="204" height="246"
         /></div>
-<div id="text-to-animate-wrapper"
-    ><div id="hide-para-end"></div
-    ><div id="hide-line-end"></div
-    ><div id="text-to-animate"
+<div id="text-to-animate" class="stylish-text-wrapper"><div><div><div
+    ><div class="hide-para-end"></div
+    ><div class="hide-line-end"></div
+    ><div class="text-to-animate"
         >This is some animating text. This is some animating text.
         This is some animating text. This is some animating text. This
         is some animating text. This is some animating text. This is
-        some animating text. This is some animating text.</div></div>
+        some animating text. This is some animating text.</div>
+</div></div></div></div>
 <div id="buttons"></div>
 <div class="stage">
-    <div class="stylish-text-wrapper"><div><div>
+    <div class="stylish-text-wrapper"><div><div><div
+        ><div class="hide-para-end"></div
+        ><div class="hide-line-end"></div
+        ><div class="text-to-animate"
+            >
+            This is some static text. This is some static text. This
+            is some static text. This is some static text. This is
+            some static text. This is some static text. This is some
+            static text. This is some static text.</div>
 <!--
-        This is some static text. This is some static text. This is some
-        static text. This is some static text. This is some static text.
-        This is some static text. This is some static text. This is some
-        static text.</div></div></div>
+            l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+            l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+            l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+            l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+            l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+            l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+            l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+            l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+            l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+            l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
+            l l l l l l l l l l</div>
 -->
-        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
-        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
-        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
-        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
-        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
-        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
-        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
-        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
-        l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l
-        l l l l l l</div></div></div>
+    </div></div></div></div>
 </div>
 </body>
 </html>
