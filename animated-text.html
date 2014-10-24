@@ -70,25 +70,46 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     height: 150px;
     width: 500px;
     position: relative;
-    background: rgb(24, 128, 196);
+    overflow: hidden;
     font-family: sans-serif;
     text-shadow: 2px 1px 2px rgba(0, 0, 0, 0.3);
+    background: rgb(24, 128, 196);
+}
+.line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+.speaker {
+    position: absolute;
+    bottom: 0;
 }
 .stylish-text-wrapper {
     position: absolute;
+    left: 0;
+    right: 0;
     bottom: 0;
-    padding: 2px 0 0 0;
+    height: 75px;
     background: black;
 }
 .stylish-text-wrapper > div {
-    padding: 5px 5px 0 5px;
+    position: absolute;
+    top: 2px;
+    left: 0;
+    right: 0;
+    bottom: 0;
     border-radius: 10px 10px 0 0;
     background: linear-gradient(to bottom,
         rgb(255, 84, 69) 50%,
         rgb(146, 50, 62) 100%);
 }
 .stylish-text-wrapper > div > div {
-    padding: 5px 5px 15px 5px;
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    right: 5px;
+    bottom: 0;
     border-radius: 5px 5px 0 0;
     background: white;
 }
@@ -102,7 +123,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     border-right: 5px solid transparent;
 }
 .stylish-text-wrapper > div > div > div {
-    position: relative;
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    right: 5px;
+    bottom: 15px;
 }
 
 </style>
@@ -468,7 +493,7 @@ function animateExclusiveSequence(
 }
 
 
-addEventListener( "load", function () {
+_.appendDom( window, { load: function () {
     
     var textToAnimateWrapper = document.querySelector(
         "#text-to-animate" );
@@ -497,13 +522,12 @@ addEventListener( "load", function () {
     
     var buttons = document.getElementById( "buttons" );
     function addButton( title, makeAnimation ) {
-        var button = document.createElement( "button" );
-        button.appendChild( document.createTextNode( title ) );
-        button.addEventListener( "click", function () {
-            currentAnimation.cancel();
-            currentAnimation = makeAnimation();
-        }, !"capture" );
-        buttons.appendChild( button );
+        _.appendDom( buttons, _.dom( "button", "" + title, {
+            click: function () {
+                currentAnimation.cancel();
+                currentAnimation = makeAnimation();
+            }
+        } ) );
     }
     
     addButton( "Shock", function () {
@@ -520,16 +544,15 @@ addEventListener( "load", function () {
     } );
     
     var w = sampleRectangle.getBoundingClientRect().width;
-    function animateEnter( totalMillis, ease ) {
+    function animateEnterHorizTemp( totalMillis, ease ) {
         var oldStyles = setTransform( sampleRectangle, "" );
         return animateEasing( totalMillis, function ( t ) {
-            setTranslation(
-                sampleRectangle, -w * ease( 1 - t ), 0 );
+            setTranslation( sampleRectangle, -w * ease( 1 - t ), 0 );
         }, function () {
             setStyles( sampleRectangle, oldStyles );
         } );
     }
-    function animateExit( totalMillis, ease ) {
+    function animateExitHorizTemp( totalMillis, ease ) {
         var oldStyles = setTransform( sampleRectangle, "" );
         return animateEasing( totalMillis, function ( t ) {
             setTranslation( sampleRectangle, -w * ease( t ), 0 );
@@ -537,14 +560,31 @@ addEventListener( "load", function () {
             setStyles( sampleRectangle, oldStyles );
         } );
     }
+    var stylishTextWrapperHeight = 75;
+    function animateEnterVert( totalMillis, elem, ease ) {
+        return animateEasing( totalMillis, function ( t ) {
+            setTranslation(
+                elem, 0, stylishTextWrapperHeight * ease( 1 - t ) );
+        }, function () {
+            setTranslation( elem, 0, 0 );
+        } );
+    }
+    function animateExitVert( totalMillis, elem, ease ) {
+        return animateEasing( totalMillis, function ( t ) {
+            setTranslation(
+                elem, 0, stylishTextWrapperHeight * ease( t ) );
+        }, function () {
+            setTranslation( elem, 0, stylishTextWrapperHeight );
+        } );
+    }
     function addEnterButton( title, ease ) {
         addButton( title, function () {
-            return animateEnter( 400, ease );
+            return animateEnterHorizTemp( 400, ease );
         } );
     }
     function addExitButton( title, ease ) {
         addButton( title, function () {
-            return animateExit( 400, ease );
+            return animateExitHorizTemp( 400, ease );
         } );
     }
     
@@ -559,7 +599,7 @@ addEventListener( "load", function () {
         // existed during the last moments of `animateEnter` and
         // thereby restore the wrong position when it completes.
         return animateExclusiveSequence( 200, function () {
-            return animateEnter( 200, easeInLinear );
+            return animateEnterHorizTemp( 200, easeInLinear );
         }, function () {
             return animateShock( {
                 elem: sampleRectangle
@@ -596,7 +636,59 @@ addEventListener( "load", function () {
             }
         } ] ).play();
     } );
-}, !"capture" );
+    
+    
+    var stage = document.querySelector(
+        ".stage" );
+    var lines = document.querySelectorAll(
+        ".stage > .line" );
+    _.arrEach( lines, function ( line, i ) {
+        if ( i === 0 )
+            setTranslation( line, 0, 0 );
+        else
+            setTranslation( line, 0, stylishTextWrapperHeight );
+    } );
+    var stageState = 0;
+    var stageAnimation = { cancel: function () {
+        // Do nothing.
+    } };
+    _.appendDom( stage, { click: function ( event ) {
+        if ( stageState === 0 ) {
+            stageState++;
+            stageAnimation.cancel();
+            stageAnimation = combineHotspotAnimations( [ {
+                hotspot: 100,
+                play: function () {
+                    return animateExitVert(
+                        100, lines[ 0 ], easeOutQuad );
+                }
+            }, {
+                hotspot: 0,
+                play: function () {
+                    return animateEnterVert(
+                        100, lines[ 1 ], easeInQuad );
+                }
+            } ] ).play();
+        } else {
+            stageState = 0;
+            stageAnimation.cancel();
+            stageAnimation = combineHotspotAnimations( [ {
+                hotspot: 100,
+                play: function () {
+                    return animateExitVert(
+                        100, lines[ 1 ], easeOutQuad );
+                }
+            }, {
+                hotspot: 0,
+                play: function () {
+                    return animateEnterVert(
+                        100, lines[ 0 ], easeInQuad );
+                }
+            } ] ).play();
+        }
+    } } );
+    
+} } );
 
 })();
 
