@@ -648,6 +648,15 @@ _.appendDom( window, { load: function () {
             setTranslation( line, 0, 0 );
         else
             setTranslation( line, 0, stylishTextWrapperHeight );
+        var sprite = line.querySelector( "canvas" );
+        sprite.width = 204;
+        sprite.height = 246;
+        var ctx = sprite.getContext( "2d" );
+        _.dom( "img", { src: "lib/elisa-standalone.png", load:
+            function ( e ) {
+            
+            ctx.drawImage( e.target, 0, 0 );
+        } } );
     } );
     var stageState = 0;
     var stageAnimation = { cancel: function () {
