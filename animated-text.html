@@ -74,6 +74,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     font-family: sans-serif;
     text-shadow: 2px 1px 2px rgba(0, 0, 0, 0.3);
     background: rgb(24, 128, 196);
+    cursor: default;
 }
 .line {
     position: absolute;
@@ -686,6 +687,9 @@ _.appendDom( window, { load: function () {
                 }
             } ] ).play();
         }
+    }, mousedown: function ( event ) {
+        // Prevent selection of text.
+        event.preventDefault();
     } } );
     
 } } );
