@@ -78,6 +78,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 }
 .line {
     position: absolute;
+    top: 0;
     left: 0;
     right: 0;
     bottom: 0;
@@ -544,48 +545,63 @@ _.appendDom( window, { load: function () {
         }, 100, 0.2 );
     } );
     
-    var w = sampleRectangle.getBoundingClientRect().width;
-    function animateEnterHorizTemp( totalMillis, ease ) {
-        var oldStyles = setTransform( sampleRectangle, "" );
+    var sampleRectangleWidth =
+        sampleRectangle.getBoundingClientRect().width;
+    function animateEnterHorizTemp( totalMillis, elem, w, ease ) {
+        var oldStyles = setTransform( elem, "" );
         return animateEasing( totalMillis, function ( t ) {
-            setTranslation( sampleRectangle, -w * ease( 1 - t ), 0 );
+            setTranslation( elem, -w * ease( 1 - t ), 0 );
         }, function () {
-            setStyles( sampleRectangle, oldStyles );
+            setStyles( elem, oldStyles );
         } );
     }
-    function animateExitHorizTemp( totalMillis, ease ) {
-        var oldStyles = setTransform( sampleRectangle, "" );
+    function animateExitHorizTemp( totalMillis, elem, w, ease ) {
+        var oldStyles = setTransform( elem, "" );
         return animateEasing( totalMillis, function ( t ) {
-            setTranslation( sampleRectangle, -w * ease( t ), 0 );
+            setTranslation( elem, -w * ease( t ), 0 );
         }, function () {
-            setStyles( sampleRectangle, oldStyles );
+            setStyles( elem, oldStyles );
         } );
     }
-    var stylishTextWrapperHeight = 75;
-    function animateEnterVert( totalMillis, elem, ease ) {
+    function animateEnterHoriz( totalMillis, elem, w, ease ) {
         return animateEasing( totalMillis, function ( t ) {
-            setTranslation(
-                elem, 0, stylishTextWrapperHeight * ease( 1 - t ) );
+            setTranslation( elem, -w * ease( 1 - t ), 0 );
         }, function () {
             setTranslation( elem, 0, 0 );
         } );
     }
-    function animateExitVert( totalMillis, elem, ease ) {
+    function animateExitHoriz( totalMillis, elem, w, ease ) {
         return animateEasing( totalMillis, function ( t ) {
-            setTranslation(
-                elem, 0, stylishTextWrapperHeight * ease( t ) );
+            setTranslation( elem, -w * ease( t ), 0 );
         }, function () {
-            setTranslation( elem, 0, stylishTextWrapperHeight );
+            setTranslation( elem, -w, 0 );
+        } );
+    }
+    var stylishTextWrapperHeight = 75;
+    function animateEnterVert( totalMillis, elem, h, ease ) {
+        return animateEasing( totalMillis, function ( t ) {
+            setTranslation( elem, 0, h * ease( 1 - t ) );
+        }, function () {
+            setTranslation( elem, 0, 0 );
+        } );
+    }
+    function animateExitVert( totalMillis, elem, h, ease ) {
+        return animateEasing( totalMillis, function ( t ) {
+            setTranslation( elem, 0, h * ease( t ) );
+        }, function () {
+            setTranslation( elem, 0, h );
         } );
     }
     function addEnterButton( title, ease ) {
         addButton( title, function () {
-            return animateEnterHorizTemp( 400, ease );
+            return animateEnterHorizTemp(
+                400, sampleRectangle, sampleRectangleWidth, ease );
         } );
     }
     function addExitButton( title, ease ) {
         addButton( title, function () {
-            return animateExitHorizTemp( 400, ease );
+            return animateExitHorizTemp(
+                400, sampleRectangle, sampleRectangleWidth, ease );
         } );
     }
     
@@ -600,7 +616,8 @@ _.appendDom( window, { load: function () {
         // existed during the last moments of `animateEnter` and
         // thereby restore the wrong position when it completes.
         return animateExclusiveSequence( 200, function () {
-            return animateEnterHorizTemp( 200, easeInLinear );
+            return animateEnterHorizTemp( 200,
+                sampleRectangle, sampleRectangleWidth, easeInLinear );
         }, function () {
             return animateShock( {
                 elem: sampleRectangle
@@ -641,17 +658,30 @@ _.appendDom( window, { load: function () {
     
     var stage = document.querySelector(
         ".stage" );
-    var lines = document.querySelectorAll(
-        ".stage > .line" );
-    _.arrEach( lines, function ( line, i ) {
+    var lineSpeakers = document.querySelectorAll(
+        ".stage > .line > .speaker" );
+    var lineBoxes = document.querySelectorAll(
+        ".stage > .line > .stylish-text-wrapper" );
+    _.arrEach( lineBoxes, function ( lineBox, i ) {
         if ( i === 0 )
-            setTranslation( line, 0, 0 );
+            setTranslation( lineBox, 0, 0 );
         else
-            setTranslation( line, 0, stylishTextWrapperHeight );
-        var sprite = line.querySelector( "canvas" );
-        sprite.width = 204;
-        sprite.height = 246;
-        var ctx = sprite.getContext( "2d" );
+            setTranslation( lineBox, 0, stylishTextWrapperHeight );
+    } );
+    _.arrEach( lineSpeakers, function ( lineSpeaker, i ) {
+        lineSpeaker.width = 34;
+        lineSpeaker.height = 41;
+        lineSpeaker.style.position = "absolute";
+        lineSpeaker.style.top = "0";
+        if ( i % 2 === 0 )
+            lineSpeaker.style.left = "0";
+        else
+            lineSpeaker.style.right = "0";
+        if ( i % 2 === 0 )
+            setTranslation( lineSpeaker, 0, 0 );
+        else
+            setTranslation( lineSpeaker, 34, 0 );
+        var ctx = lineSpeaker.getContext( "2d" );
         _.dom( "img", { src: "lib/elisa-standalone.png", load:
             function ( e ) {
             
@@ -669,14 +699,26 @@ _.appendDom( window, { load: function () {
             stageAnimation = combineHotspotAnimations( [ {
                 hotspot: 100,
                 play: function () {
-                    return animateExitVert(
-                        100, lines[ 0 ], easeOutQuad );
+                    return animateExitVert( 100, lineBoxes[ 0 ],
+                        stylishTextWrapperHeight, easeOutQuad );
+                }
+            }, {
+                hotspot: 100,
+                play: function () {
+                    return animateExitHoriz(
+                        100, lineSpeakers[ 0 ], 34, easeOutQuad );
                 }
             }, {
                 hotspot: 0,
                 play: function () {
-                    return animateEnterVert(
-                        100, lines[ 1 ], easeInQuad );
+                    return animateEnterHoriz(
+                        100, lineSpeakers[ 1 ], -34, easeInQuad );
+                }
+            }, {
+                hotspot: 0,
+                play: function () {
+                    return animateEnterVert( 100, lineBoxes[ 1 ],
+                        stylishTextWrapperHeight, easeInQuad );
                 }
             } ] ).play();
         } else {
@@ -685,14 +727,26 @@ _.appendDom( window, { load: function () {
             stageAnimation = combineHotspotAnimations( [ {
                 hotspot: 100,
                 play: function () {
-                    return animateExitVert(
-                        100, lines[ 1 ], easeOutQuad );
+                    return animateExitVert( 100, lineBoxes[ 1 ],
+                        stylishTextWrapperHeight, easeOutQuad );
+                }
+            }, {
+                hotspot: 100,
+                play: function () {
+                    return animateExitHoriz(
+                        100, lineSpeakers[ 1 ], -34, easeOutQuad );
                 }
             }, {
                 hotspot: 0,
                 play: function () {
-                    return animateEnterVert(
-                        100, lines[ 0 ], easeInQuad );
+                    return animateEnterHoriz(
+                        100, lineSpeakers[ 0 ], 34, easeInQuad );
+                }
+            }, {
+                hotspot: 0,
+                play: function () {
+                    return animateEnterVert( 100, lineBoxes[ 0 ],
+                        stylishTextWrapperHeight, easeInQuad );
                 }
             } ] ).play();
         }
