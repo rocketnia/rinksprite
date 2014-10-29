@@ -669,8 +669,6 @@ _.appendDom( window, { load: function () {
             setTranslation( lineBox, 0, stylishTextWrapperHeight );
     } );
     _.arrEach( lineSpeakers, function ( lineSpeaker, i ) {
-        lineSpeaker.width = 34;
-        lineSpeaker.height = 41;
         lineSpeaker.style.position = "absolute";
         lineSpeaker.style.top = "0";
         if ( i % 2 === 0 )
@@ -685,7 +683,15 @@ _.appendDom( window, { load: function () {
         _.dom( "img", { src: "lib/elisa-standalone.png", load:
             function ( e ) {
             
+            lineSpeaker.width = e.target.width;
+            lineSpeaker.height = e.target.height;
+            ctx.save();
+            if ( i % 2 === 1 ) {
+                ctx.translate( e.target.width, 0 );
+                ctx.scale( -1, 1 );
+            }
             ctx.drawImage( e.target, 0, 0 );
+            ctx.restore();
         } } );
     } );
     var stageState = 0;
