@@ -231,7 +231,6 @@ function animateText( elems, charactersPerSecond ) {
         width: ""
     } );
     
-    var charactersPerSecond = 100;
     var textIndex = 0;
     
     var result = animateFor( 1 / 0, function ( elapsedMillis ) {
@@ -699,6 +698,21 @@ _.appendDom( window, { load: function () {
         // Do nothing.
     } };
     _.appendDom( stage, { click: function ( event ) {
+        function animateLine( lineBox ) {
+            var hideParaEnd = lineBox.querySelector(
+                ".hide-para-end" );
+            var hideLineEnd = lineBox.querySelector(
+                ".hide-line-end" );
+            var textToAnimate = lineBox.querySelector(
+                ".text-to-animate" );
+            return animateText( {
+                textToAnimateWrapper: lineBox,
+                hideParaEnd: hideParaEnd,
+                hideLineEnd: hideLineEnd,
+                textToAnimate: textToAnimate
+            }, 400 );
+        }
+        
         if ( stageState === 0 ) {
             stageState++;
             stageAnimation.cancel();
@@ -725,6 +739,11 @@ _.appendDom( window, { load: function () {
                 play: function () {
                     return animateEnterVert( 100, lineBoxes[ 1 ],
                         stylishTextWrapperHeight, easeInQuad );
+                }
+            }, {
+                hotspot: 0,
+                play: function () {
+                    return animateLine( lineBoxes[ 1 ] );
                 }
             } ] ).play();
         } else {
@@ -753,6 +772,11 @@ _.appendDom( window, { load: function () {
                 play: function () {
                     return animateEnterVert( 100, lineBoxes[ 0 ],
                         stylishTextWrapperHeight, easeInQuad );
+                }
+            }, {
+                hotspot: 0,
+                play: function () {
+                    return animateLine( lineBoxes[ 0 ] );
                 }
             } ] ).play();
         }
