@@ -493,6 +493,253 @@ function animateExclusiveSequence(
     return result;
 }
 
+function animateEnterHorizTemp( totalMillis, elem, w, ease ) {
+    var oldStyles = setTransform( elem, "" );
+    return animateEasing( totalMillis, function ( t ) {
+        setTranslation( elem, -w * ease( 1 - t ), 0 );
+    }, function () {
+        setStyles( elem, oldStyles );
+    } );
+}
+function animateExitHorizTemp( totalMillis, elem, w, ease ) {
+    var oldStyles = setTransform( elem, "" );
+    return animateEasing( totalMillis, function ( t ) {
+        setTranslation( elem, -w * ease( t ), 0 );
+    }, function () {
+        setStyles( elem, oldStyles );
+    } );
+}
+function animateEnterHoriz( totalMillis, elem, w, ease ) {
+    return animateEasing( totalMillis, function ( t ) {
+        setTranslation( elem, -w * ease( 1 - t ), 0 );
+    }, function () {
+        setTranslation( elem, 0, 0 );
+    } );
+}
+function animateExitHoriz( totalMillis, elem, w, ease ) {
+    return animateEasing( totalMillis, function ( t ) {
+        setTranslation( elem, -w * ease( t ), 0 );
+    }, function () {
+        setTranslation( elem, -w, 0 );
+    } );
+}
+function animateEnterVert( totalMillis, elem, h, ease ) {
+    return animateEasing( totalMillis, function ( t ) {
+        setTranslation( elem, 0, h * ease( 1 - t ) );
+    }, function () {
+        setTranslation( elem, 0, 0 );
+    } );
+}
+function animateExitVert( totalMillis, elem, h, ease ) {
+    return animateEasing( totalMillis, function ( t ) {
+        setTranslation( elem, 0, h * ease( t ) );
+    }, function () {
+        setTranslation( elem, 0, h );
+    } );
+}
+
+// TODO: Import this from Chopsgen, or rather move this from Chopsgen
+// into Lathe or something.
+// TODO: See if this is sufficient.
+var htmlEscape = function ( content ) {
+    return content.
+        replace( /&/g, "&amp;" ).  // must come first
+        replace( /<(?:)/g, "&lt;" ).
+        replace( />/g, "&gt;" ).
+        // TODO: See if the following can be removed.
+        replace( /\u2013/g, "&ndash;" ).
+        replace( /\u2014/g, "&mdash;" ).
+        replace( /\u00A9/g, "&copy;" );
+};
+
+// TODO: Try this out.
+function compileConversation( lines, getSpeakerName ) {
+    if ( !(true
+        && _.likeArray( lines )
+        && _.arrAll( lines, function ( line ) {
+            return (true
+                && _.likeArray( line )
+                && 2 <= line.length
+                && _.arrAll( line, function ( x ) {
+                    return _.isString( x );
+                } )
+            );
+        } )
+    ) )
+        throw new Error();
+    
+    var linesCode = _.arrMap( lines, function ( line ) {
+        var speakerId = line[ 0 ];
+        var speakerName = getSpeakerName( speakerId );
+        var stageDirections = _.arrCut( line, 1, line.length - 1 );
+        var dialogue = line[ line.length - 1 ];
+        return ("" +
+"    <div class=\"line\">\n" +
+"        <script type=\"text/plain\">\n" +
+            JSON.stringify( {
+                speakerId: speakerId,
+                stageDirections: stageDirections
+            } ).replace( "<", "\\u003c" ) + "\n" +
+"        <" + "/script>" +
+"        <canvas class=\"speaker\" width=\"1\" height=\"1\"><" +
+            "/canvas>\n" +
+"        <div class=\"stylish-text-wrapper\"><div><div><div\n" +
+"            ><div class=\"hide-para-end\"><" + "/div\n" +
+"            ><div class=\"hide-line-end\"><" + "/div\n" +
+"            ><div class=\"text-to-animate\"\n" +
+"                >" + htmlEscape( dialogue ) + "<" + "/div>\n" +
+"        <" + "/div><" + "/div><" + "/div><" + "/div>\n" +
+"    <" + "/div>"
+        );
+    } ).join( "\n" );
+    
+    return ("" +
+"<div class=\"stage\">\n" +
+    linesCode + "\n" +
+"<" + "/div>"
+    );
+}
+
+function querySelectorAllGeneration( el, generation, query ) {
+    return _.arrKeep( el.querySelectorAll( query ), function ( it ) {
+        var ancestor = it;
+        for ( var i = 0; i < generation; i++ ) {
+            if ( ancestor === null )
+                return false;
+            ancestor = ancestor.parentNode;
+        }
+        return ancestor === el;
+    } );
+}
+
+function querySelectorGeneration( el, generation, query ) {
+    var results = querySelectorAllGeneration( el, generation, query );
+    return results.length === 0 ? null : results[ 0 ];
+}
+
+// TODO: Find a better place for this variable.
+var stylishTextWrapperHeight = 75;
+
+function activateStage( stage ) {
+    var lineSpeakers = querySelectorAllGeneration( stage, 2,
+        ".line > .speaker" );
+    var lineBoxes = querySelectorAllGeneration( stage, 2,
+        ".line > .stylish-text-wrapper" );
+    _.arrEach( lineBoxes, function ( lineBox, i ) {
+        // TODO: Yes, the first line is special because it's already
+        // being displayed, but see if it can be special outside the
+        // main logic, such as having nothing be displayed until the
+        // first line is explicitly advanced.
+        if ( i === 0 )
+            setTranslation( lineBox, 0, 0 );
+        else
+            setTranslation( lineBox, 0, stylishTextWrapperHeight );
+    } );
+    _.arrEach( lineSpeakers, function ( lineSpeaker, i ) {
+        // TODO: Make the direction depend on speaker metadata rather
+        // than the index in the conversation.
+        
+        lineSpeaker.style.position = "absolute";
+        lineSpeaker.style.top = "0";
+        if ( i % 2 === 0 )
+            lineSpeaker.style.left = "0";
+        else
+            lineSpeaker.style.right = "0";
+        // TODO: Yes, the first line is special because it's already
+        // being displayed, but see if it can be special outside the
+        // main logic, such as having nothing be displayed until the
+        // first line is explicitly advanced.
+        if ( i === 0 )
+            setTranslation( lineSpeaker, 0, 0 );
+        else if ( i % 2 === 0 )
+            setTranslation( lineSpeaker, -34, 0 );
+        else
+            setTranslation( lineSpeaker, 34, 0 );
+        var ctx = lineSpeaker.getContext( "2d" );
+        _.dom( "img", { src: "lib/elisa-standalone.png", load:
+            function ( e ) {
+            
+            lineSpeaker.width = e.target.width;
+            lineSpeaker.height = e.target.height;
+            ctx.save();
+            if ( i % 2 === 1 ) {
+                ctx.translate( e.target.width, 0 );
+                ctx.scale( -1, 1 );
+            }
+            ctx.drawImage( e.target, 0, 0 );
+            ctx.restore();
+        } } );
+    } );
+    var stageState = 0;
+    var stageAnimation = { cancel: function () {
+        // Do nothing.
+    } };
+    _.appendDom( stage, { click: function ( event ) {
+        function animateLine( lineBox ) {
+            var hideParaEnd = querySelectorGeneration( lineBox, 4,
+                "div > div > div > .hide-para-end" );
+            var hideLineEnd = querySelectorGeneration( lineBox, 4,
+                "div > div > div > .hide-line-end" );
+            var textToAnimate = querySelectorGeneration( lineBox, 4,
+                "div > div > div > .text-to-animate" );
+            return animateText( {
+                textToAnimateWrapper: lineBox,
+                hideParaEnd: hideParaEnd,
+                hideLineEnd: hideLineEnd,
+                textToAnimate: textToAnimate
+            }, 400 );
+        }
+        
+        var oldI = stageState;
+        // TODO: Figure out if we usually want conversations to
+        // repeat.
+        stageState++;
+        stageState %= lineBoxes.length;
+        var newI = stageState;
+        
+        stageAnimation.cancel();
+        stageAnimation = combineHotspotAnimations( [ {
+            hotspot: 100,
+            play: function () {
+                return animateExitVert( 100, lineBoxes[ oldI ],
+                    stylishTextWrapperHeight, easeOutQuad );
+            }
+        }, {
+            hotspot: 100,
+            play: function () {
+                // TODO: Make the direction depend on speaker metadata
+                // rather than the index in the conversation.
+                var w = (oldI % 2 === 0 ? 1 : -1) * 34;
+                return animateExitHoriz(
+                    100, lineSpeakers[ oldI ], w, easeOutQuad );
+            }
+        }, {
+            hotspot: 0,
+            play: function () {
+                // TODO: Make the direction depend on speaker metadata
+                // rather than the index in the conversation.
+                var w = (newI % 2 === 0 ? 1 : -1) * 34;
+                return animateEnterHoriz(
+                    100, lineSpeakers[ newI ], w, easeInQuad );
+            }
+        }, {
+            hotspot: 0,
+            play: function () {
+                return animateEnterVert( 100, lineBoxes[ newI ],
+                    stylishTextWrapperHeight, easeInQuad );
+            }
+        }, {
+            hotspot: 0,
+            play: function () {
+                return animateLine( lineBoxes[ newI ] );
+            }
+        } ] ).play();
+    }, mousedown: function ( event ) {
+        // Prevent selection of text.
+        event.preventDefault();
+    } } );
+}
+
 
 _.appendDom( window, { load: function () {
     
@@ -546,51 +793,6 @@ _.appendDom( window, { load: function () {
     
     var sampleRectangleWidth =
         sampleRectangle.getBoundingClientRect().width;
-    function animateEnterHorizTemp( totalMillis, elem, w, ease ) {
-        var oldStyles = setTransform( elem, "" );
-        return animateEasing( totalMillis, function ( t ) {
-            setTranslation( elem, -w * ease( 1 - t ), 0 );
-        }, function () {
-            setStyles( elem, oldStyles );
-        } );
-    }
-    function animateExitHorizTemp( totalMillis, elem, w, ease ) {
-        var oldStyles = setTransform( elem, "" );
-        return animateEasing( totalMillis, function ( t ) {
-            setTranslation( elem, -w * ease( t ), 0 );
-        }, function () {
-            setStyles( elem, oldStyles );
-        } );
-    }
-    function animateEnterHoriz( totalMillis, elem, w, ease ) {
-        return animateEasing( totalMillis, function ( t ) {
-            setTranslation( elem, -w * ease( 1 - t ), 0 );
-        }, function () {
-            setTranslation( elem, 0, 0 );
-        } );
-    }
-    function animateExitHoriz( totalMillis, elem, w, ease ) {
-        return animateEasing( totalMillis, function ( t ) {
-            setTranslation( elem, -w * ease( t ), 0 );
-        }, function () {
-            setTranslation( elem, -w, 0 );
-        } );
-    }
-    var stylishTextWrapperHeight = 75;
-    function animateEnterVert( totalMillis, elem, h, ease ) {
-        return animateEasing( totalMillis, function ( t ) {
-            setTranslation( elem, 0, h * ease( 1 - t ) );
-        }, function () {
-            setTranslation( elem, 0, 0 );
-        } );
-    }
-    function animateExitVert( totalMillis, elem, h, ease ) {
-        return animateEasing( totalMillis, function ( t ) {
-            setTranslation( elem, 0, h * ease( t ) );
-        }, function () {
-            setTranslation( elem, 0, h );
-        } );
-    }
     function addEnterButton( title, ease ) {
         addButton( title, function () {
             return animateEnterHorizTemp(
@@ -657,134 +859,7 @@ _.appendDom( window, { load: function () {
     
     var stage = document.querySelector(
         ".stage" );
-    var lineSpeakers = document.querySelectorAll(
-        ".stage > .line > .speaker" );
-    var lineBoxes = document.querySelectorAll(
-        ".stage > .line > .stylish-text-wrapper" );
-    _.arrEach( lineBoxes, function ( lineBox, i ) {
-        if ( i === 0 )
-            setTranslation( lineBox, 0, 0 );
-        else
-            setTranslation( lineBox, 0, stylishTextWrapperHeight );
-    } );
-    _.arrEach( lineSpeakers, function ( lineSpeaker, i ) {
-        lineSpeaker.style.position = "absolute";
-        lineSpeaker.style.top = "0";
-        if ( i % 2 === 0 )
-            lineSpeaker.style.left = "0";
-        else
-            lineSpeaker.style.right = "0";
-        if ( i % 2 === 0 )
-            setTranslation( lineSpeaker, 0, 0 );
-        else
-            setTranslation( lineSpeaker, 34, 0 );
-        var ctx = lineSpeaker.getContext( "2d" );
-        _.dom( "img", { src: "lib/elisa-standalone.png", load:
-            function ( e ) {
-            
-            lineSpeaker.width = e.target.width;
-            lineSpeaker.height = e.target.height;
-            ctx.save();
-            if ( i % 2 === 1 ) {
-                ctx.translate( e.target.width, 0 );
-                ctx.scale( -1, 1 );
-            }
-            ctx.drawImage( e.target, 0, 0 );
-            ctx.restore();
-        } } );
-    } );
-    var stageState = 0;
-    var stageAnimation = { cancel: function () {
-        // Do nothing.
-    } };
-    _.appendDom( stage, { click: function ( event ) {
-        function animateLine( lineBox ) {
-            var hideParaEnd = lineBox.querySelector(
-                ".hide-para-end" );
-            var hideLineEnd = lineBox.querySelector(
-                ".hide-line-end" );
-            var textToAnimate = lineBox.querySelector(
-                ".text-to-animate" );
-            return animateText( {
-                textToAnimateWrapper: lineBox,
-                hideParaEnd: hideParaEnd,
-                hideLineEnd: hideLineEnd,
-                textToAnimate: textToAnimate
-            }, 400 );
-        }
-        
-        if ( stageState === 0 ) {
-            stageState++;
-            stageAnimation.cancel();
-            stageAnimation = combineHotspotAnimations( [ {
-                hotspot: 100,
-                play: function () {
-                    return animateExitVert( 100, lineBoxes[ 0 ],
-                        stylishTextWrapperHeight, easeOutQuad );
-                }
-            }, {
-                hotspot: 100,
-                play: function () {
-                    return animateExitHoriz(
-                        100, lineSpeakers[ 0 ], 34, easeOutQuad );
-                }
-            }, {
-                hotspot: 0,
-                play: function () {
-                    return animateEnterHoriz(
-                        100, lineSpeakers[ 1 ], -34, easeInQuad );
-                }
-            }, {
-                hotspot: 0,
-                play: function () {
-                    return animateEnterVert( 100, lineBoxes[ 1 ],
-                        stylishTextWrapperHeight, easeInQuad );
-                }
-            }, {
-                hotspot: 0,
-                play: function () {
-                    return animateLine( lineBoxes[ 1 ] );
-                }
-            } ] ).play();
-        } else {
-            stageState = 0;
-            stageAnimation.cancel();
-            stageAnimation = combineHotspotAnimations( [ {
-                hotspot: 100,
-                play: function () {
-                    return animateExitVert( 100, lineBoxes[ 1 ],
-                        stylishTextWrapperHeight, easeOutQuad );
-                }
-            }, {
-                hotspot: 100,
-                play: function () {
-                    return animateExitHoriz(
-                        100, lineSpeakers[ 1 ], -34, easeOutQuad );
-                }
-            }, {
-                hotspot: 0,
-                play: function () {
-                    return animateEnterHoriz(
-                        100, lineSpeakers[ 0 ], 34, easeInQuad );
-                }
-            }, {
-                hotspot: 0,
-                play: function () {
-                    return animateEnterVert( 100, lineBoxes[ 0 ],
-                        stylishTextWrapperHeight, easeInQuad );
-                }
-            }, {
-                hotspot: 0,
-                play: function () {
-                    return animateLine( lineBoxes[ 0 ] );
-                }
-            } ] ).play();
-        }
-    }, mousedown: function ( event ) {
-        // Prevent selection of text.
-        event.preventDefault();
-    } } );
-    
+    activateStage( stage );
 } } );
 
 })();
@@ -847,6 +922,19 @@ _.appendDom( window, { load: function () {
                 This is line two. This is line two. This is line two.
                 This is line two. This is line two. This is line
                 two.</div>
+        </div></div></div></div>
+    </div>
+    <div class="line">
+        <canvas class="speaker" width="1" height="1"></canvas>
+        <div class="stylish-text-wrapper"><div><div><div
+            ><div class="hide-para-end"></div
+            ><div class="hide-line-end"></div
+            ><div class="text-to-animate"
+                >This is line three. This is line three. This is line
+                three. This is line three. This is line three. This is
+                line three. This is line three. This is line three.
+                This is line three. This is line three. This is line
+                three.</div>
         </div></div></div></div>
     </div>
 </div>
