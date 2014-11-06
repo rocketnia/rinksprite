@@ -553,7 +553,7 @@ var htmlEscape = function ( content ) {
 };
 
 // TODO: Try this out.
-function compileConversation( lines, getSpeakerName ) {
+function compileConversation( lines, getSpeakerInfo ) {
     if ( !(true
         && _.likeArray( lines )
         && _.arrAll( lines, function ( line ) {
@@ -568,18 +568,41 @@ function compileConversation( lines, getSpeakerName ) {
     ) )
         throw new Error();
     
+    function jsonForScriptTag( jsonObj ) {
+        return JSON.stringify( jsonObj ).replace( "<", "\\u003c" );
+    }
+    
+    var speakerMap = {};
     var linesCode = _.arrMap( lines, function ( line ) {
+        
+        function nullOrString( x ) {
+            return x === null || x === void 0 ? null : "" + x;
+        }
+        
         var speakerId = line[ 0 ];
-        var speakerName = getSpeakerName( speakerId );
+        var rawSpeakerInfo = getSpeakerInfo( speakerId );
+        var speakerInfo = {
+            name: "" + rawSpeakerInfo.name,
+            imageUrls: {
+                facingRight: nullOrString(
+                    rawSpeakerInfo.imageUrls.facingRight ),
+                facingLeft: nullOrString(
+                    rawSpeakerInfo.imageUrls.facingLeft )
+            }
+        };
+        speakerMap[ "|" + speakerId ] = speakerInfo;
         var stageDirections = _.arrCut( line, 1, line.length - 1 );
         var dialogue = line[ line.length - 1 ];
+        // TODO: Put speakerInfo.name in here somewhere that a screen
+        // reader will read (or that a text box style could use as a
+        // heading, perhaps).
         return ("" +
 "    <div class=\"line\">\n" +
 "        <script type=\"text/plain\">\n" +
-            JSON.stringify( {
+            jsonForScriptTag( {
                 speakerId: speakerId,
                 stageDirections: stageDirections
-            } ).replace( "<", "\\u003c" ) + "\n" +
+            } ) + "\n" +
 "        <" + "/script>" +
 "        <canvas class=\"speaker\" width=\"1\" height=\"1\"><" +
             "/canvas>\n" +
@@ -595,6 +618,11 @@ function compileConversation( lines, getSpeakerName ) {
     
     return ("" +
 "<div class=\"stage\">\n" +
+"    <script type=\"text/plain\">\n" +
+        jsonForScriptTag( {
+            speakers: speakerMap
+        } ) + "\n" +
+"    <" + "/script>\n" +
     linesCode + "\n" +
 "<" + "/div>"
     );
@@ -621,54 +649,91 @@ function querySelectorGeneration( el, generation, query ) {
 var stylishTextWrapperHeight = 75;
 
 function activateStage( stage ) {
-    var lineSpeakers = querySelectorAllGeneration( stage, 2,
-        ".line > .speaker" );
-    var lineBoxes = querySelectorAllGeneration( stage, 2,
-        ".line > .stylish-text-wrapper" );
-    _.arrEach( lineBoxes, function ( lineBox, i ) {
+    var stageInfo = JSON.parse( querySelectorGeneration(
+        stage, 1, "script[type=\"text/plain\"]" ).firstChild.data );
+    var lines = _.arrMap(
+        querySelectorAllGeneration( stage, 1, ".line" ),
+        function ( line ) {
+        
+        return {
+            lineInfo: JSON.parse( querySelectorGeneration( line, 1,
+                "script[type=\"text/plain\"]" ).firstChild.data ),
+            speaker: querySelectorGeneration( line, 1, ".speaker" ),
+            box: querySelectorGeneration( line, 1,
+                ".stylish-text-wrapper" )
+        };
+    } );
+    _.arrEach( lines, function ( line, i ) {
+        
         // TODO: Yes, the first line is special because it's already
         // being displayed, but see if it can be special outside the
         // main logic, such as having nothing be displayed until the
         // first line is explicitly advanced.
         if ( i === 0 )
-            setTranslation( lineBox, 0, 0 );
+            setTranslation( line.box, 0, 0 );
         else
-            setTranslation( lineBox, 0, stylishTextWrapperHeight );
-    } );
-    _.arrEach( lineSpeakers, function ( lineSpeaker, i ) {
+            setTranslation( line.box, 0, stylishTextWrapperHeight );
+        
+        
         // TODO: Make the direction depend on speaker metadata rather
         // than the index in the conversation.
         
-        lineSpeaker.style.position = "absolute";
-        lineSpeaker.style.top = "0";
+        line.speaker.style.position = "absolute";
+        line.speaker.style.top = "0";
         if ( i % 2 === 0 )
-            lineSpeaker.style.left = "0";
+            line.speaker.style.left = "0";
         else
-            lineSpeaker.style.right = "0";
+            line.speaker.style.right = "0";
         // TODO: Yes, the first line is special because it's already
         // being displayed, but see if it can be special outside the
         // main logic, such as having nothing be displayed until the
         // first line is explicitly advanced.
         if ( i === 0 )
-            setTranslation( lineSpeaker, 0, 0 );
+            setTranslation( line.speaker, 0, 0 );
         else if ( i % 2 === 0 )
-            setTranslation( lineSpeaker, -34, 0 );
+            setTranslation( line.speaker, -34, 0 );
         else
-            setTranslation( lineSpeaker, 34, 0 );
-        var ctx = lineSpeaker.getContext( "2d" );
-        _.dom( "img", { src: "lib/elisa-standalone.png", load:
-            function ( e ) {
-            
-            lineSpeaker.width = e.target.width;
-            lineSpeaker.height = e.target.height;
-            ctx.save();
-            if ( i % 2 === 1 ) {
+            setTranslation( line.speaker, 34, 0 );
+        
+        function nullOrString( x ) {
+            return x === null || x === void 0 ? null : "" + x;
+        }
+        var speakerId = "" + line.lineInfo.speakerId;
+        var speakerInfo = stageInfo.speakers[ "|" + speakerId ];
+        var imageUrls = {
+            "1": nullOrString( speakerInfo.imageUrls.facingRight ),
+            "-1": nullOrString( speakerInfo.imageUrls.facingLeft )
+        };
+        var facingForwards = i % 2 === 1 ? 1 : -1;
+        
+        if ( imageUrls[ facingForwards ] !== null ) {
+            _.dom( "img", { src: imageUrls[ facingForwards ], load:
+                function ( e ) {
+                
+                line.speaker.width = e.target.width;
+                line.speaker.height = e.target.height;
+                var ctx = line.speaker.getContext( "2d" );
+                ctx.drawImage( e.target, 0, 0 );
+            } } );
+        } else if ( imageUrls[ -facingForwards ] !== null ) {
+            _.dom( "img", { src: imageUrls[ -facingForwards ], load:
+                function ( e ) {
+                
+                line.speaker.width = e.target.width;
+                line.speaker.height = e.target.height;
+                var ctx = line.speaker.getContext( "2d" );
+                ctx.save();
                 ctx.translate( e.target.width, 0 );
                 ctx.scale( -1, 1 );
-            }
-            ctx.drawImage( e.target, 0, 0 );
-            ctx.restore();
-        } } );
+                ctx.drawImage( e.target, 0, 0 );
+                ctx.restore();
+            } } );
+        } else {
+            // If there are no images available, use a transparent
+            // pixel.
+            line.speaker.width = 1;
+            line.speaker.height = 1;
+        }
     } );
     var stageState = 0;
     var stageAnimation = { cancel: function () {
@@ -694,14 +759,14 @@ function activateStage( stage ) {
         // TODO: Figure out if we usually want conversations to
         // repeat.
         stageState++;
-        stageState %= lineBoxes.length;
+        stageState %= lines.length;
         var newI = stageState;
         
         stageAnimation.cancel();
         stageAnimation = combineHotspotAnimations( [ {
             hotspot: 100,
             play: function () {
-                return animateExitVert( 100, lineBoxes[ oldI ],
+                return animateExitVert( 100, lines[ oldI ].box,
                     stylishTextWrapperHeight, easeOutQuad );
             }
         }, {
@@ -711,7 +776,7 @@ function activateStage( stage ) {
                 // rather than the index in the conversation.
                 var w = (oldI % 2 === 0 ? 1 : -1) * 34;
                 return animateExitHoriz(
-                    100, lineSpeakers[ oldI ], w, easeOutQuad );
+                    100, lines[ oldI ].speaker, w, easeOutQuad );
             }
         }, {
             hotspot: 0,
@@ -720,18 +785,18 @@ function activateStage( stage ) {
                 // rather than the index in the conversation.
                 var w = (newI % 2 === 0 ? 1 : -1) * 34;
                 return animateEnterHoriz(
-                    100, lineSpeakers[ newI ], w, easeInQuad );
+                    100, lines[ newI ].speaker, w, easeInQuad );
             }
         }, {
             hotspot: 0,
             play: function () {
-                return animateEnterVert( 100, lineBoxes[ newI ],
+                return animateEnterVert( 100, lines[ newI ].box,
                     stylishTextWrapperHeight, easeInQuad );
             }
         }, {
             hotspot: 0,
             play: function () {
-                return animateLine( lineBoxes[ newI ] );
+                return animateLine( lines[ newI ].box );
             }
         } ] ).play();
     }, mousedown: function ( event ) {
@@ -857,9 +922,23 @@ _.appendDom( window, { load: function () {
     } );
     
     
-    var stage = document.querySelector(
-        ".stage" );
+    var stage = _.el( "stage1" );
     activateStage( stage );
+    var stage2Wrapper = _.el( "stage2Wrapper" );
+    stage2Wrapper.innerHTML = compileConversation( [
+        [ "elisa", "Line one." ],
+        [ "elisa", "Line two." ],
+        [ "elisa", "Line three." ]
+    ], function ( speakerId ) {
+        return {
+            name: "Elisa",
+            imageUrls: {
+                facingLeft: "lib/elisa-standalone.png"
+            }
+        };
+    } );
+    activateStage(
+        querySelectorGeneration( stage2Wrapper, 1, ".stage" ) );
 } } );
 
 })();
@@ -882,8 +961,20 @@ _.appendDom( window, { load: function () {
         some animating text. This is some animating text.</div>
 </div></div></div></div>
 <div id="buttons"></div>
-<div class="stage">
+<div id="stage1" class="stage">
+    <script type="text/plain"> {
+        "speakers": {
+            "|elisa": {
+                "imageUrls": {
+                    "facingLeft": "lib/elisa-standalone.png"
+                }
+            }
+        }
+    } </script>
     <div class="line">
+        <script type="text/plain"> {
+            "speakerId": "elisa"
+        } </script>
         <canvas class="speaker" width="1" height="1"></canvas>
         <div class="stylish-text-wrapper"><div><div><div
             ><div class="hide-para-end"></div
@@ -912,6 +1003,9 @@ _.appendDom( window, { load: function () {
         </div></div></div></div>
     </div>
     <div class="line">
+        <script type="text/plain"> {
+            "speakerId": "elisa"
+        } </script>
         <canvas class="speaker" width="1" height="1"></canvas>
         <div class="stylish-text-wrapper"><div><div><div
             ><div class="hide-para-end"></div
@@ -925,6 +1019,9 @@ _.appendDom( window, { load: function () {
         </div></div></div></div>
     </div>
     <div class="line">
+        <script type="text/plain"> {
+            "speakerId": "elisa"
+        } </script>
         <canvas class="speaker" width="1" height="1"></canvas>
         <div class="stylish-text-wrapper"><div><div><div
             ><div class="hide-para-end"></div
@@ -938,5 +1035,6 @@ _.appendDom( window, { load: function () {
         </div></div></div></div>
     </div>
 </div>
+<div id="stage2Wrapper"></div>
 </body>
 </html>
