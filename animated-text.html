@@ -552,7 +552,6 @@ var htmlEscape = function ( content ) {
         replace( /\u00A9/g, "&copy;" );
 };
 
-// TODO: Try this out.
 function compileConversation( lines, getSpeakerInfo ) {
     if ( !(true
         && _.likeArray( lines )
@@ -664,16 +663,9 @@ function activateStage( stage ) {
                 ".stylish-text-wrapper" )
         };
     } );
-    _.arrEach( lines, function ( line, i ) {
+    var facingForwardsMap = _.arrMap( lines, function ( line, i ) {
         
-        // TODO: Yes, the first line is special because it's already
-        // being displayed, but see if it can be special outside the
-        // main logic, such as having nothing be displayed until the
-        // first line is explicitly advanced.
-        if ( i === 0 )
-            setTranslation( line.box, 0, 0 );
-        else
-            setTranslation( line.box, 0, stylishTextWrapperHeight );
+        setTranslation( line.box, 0, stylishTextWrapperHeight );
         
         
         function nullOrString( x ) {
@@ -695,14 +687,7 @@ function activateStage( stage ) {
             line.speaker.style.left = "0";
         else
             line.speaker.style.right = "0";
-        // TODO: Yes, the first line is special because it's already
-        // being displayed, but see if it can be special outside the
-        // main logic, such as having nothing be displayed until the
-        // first line is explicitly advanced.
-        if ( i === 0 )
-            setTranslation( line.speaker, 0, 0 );
-        else
-            setTranslation( line.speaker, -34 * facingForwards, 0 );
+        setTranslation( line.speaker, -34 * facingForwards, 0 );
         
         if ( imageUrls[ facingForwards ] !== null ) {
             _.dom( "img", { src: imageUrls[ facingForwards ], load:
@@ -732,12 +717,35 @@ function activateStage( stage ) {
             line.speaker.width = 1;
             line.speaker.height = 1;
         }
+        
+        return facingForwards;
     } );
-    var stageState = 0;
+    var stageState = null;
     var stageAnimation = { cancel: function () {
         // Do nothing.
     } };
-    _.appendDom( stage, { click: function ( event ) {
+    function cutToState( newStageState ) {
+        if ( stageState === newStageState )
+            return;
+        
+        if ( stageState !== null ) {
+            setTranslation( lines[ stageState ].box,
+                0, stylishTextWrapperHeight );
+            setTranslation( lines[ stageState ].speaker,
+                -34 * facingForwardsMap[ stageState ], 0 );
+        }
+        
+        if ( newStageState !== null ) {
+            setTranslation( lines[ newStageState ].box, 0, 0 );
+            setTranslation( lines[ newStageState ].speaker, 0, 0 );
+        }
+        
+        stageState = newStageState;
+    }
+    function animateToState( newStageState ) {
+        if ( stageState === newStageState )
+            return;
+        
         function animateLine( lineBox ) {
             var hideParaEnd = querySelectorGeneration( lineBox, 4,
                 "div > div > div > .hide-para-end" );
@@ -753,50 +761,61 @@ function activateStage( stage ) {
             }, 400 );
         }
         
-        var oldI = stageState;
-        // TODO: Figure out if we usually want conversations to
-        // repeat.
-        stageState++;
-        stageState %= lines.length;
-        var newI = stageState;
-        
-        stageAnimation.cancel();
-        stageAnimation = combineHotspotAnimations( [ {
-            hotspot: 100,
-            play: function () {
-                return animateExitVert( 100, lines[ oldI ].box,
-                    stylishTextWrapperHeight, easeOutQuad );
-            }
-        }, {
-            hotspot: 100,
-            play: function () {
-                // TODO: Make the direction depend on speaker metadata
-                // rather than the index in the conversation.
-                var w = (oldI % 2 === 0 ? 1 : -1) * 34;
-                return animateExitHoriz(
-                    100, lines[ oldI ].speaker, w, easeOutQuad );
-            }
-        }, {
-            hotspot: 0,
-            play: function () {
-                // TODO: Make the direction depend on speaker metadata
-                // rather than the index in the conversation.
-                var w = (newI % 2 === 0 ? 1 : -1) * 34;
-                return animateEnterHoriz(
-                    100, lines[ newI ].speaker, w, easeInQuad );
-            }
-        }, {
-            hotspot: 0,
-            play: function () {
-                return animateEnterVert( 100, lines[ newI ].box,
-                    stylishTextWrapperHeight, easeInQuad );
-            }
-        }, {
+        var animations = [ {
             hotspot: 0,
             play: function () {
                 return animateLine( lines[ newI ].box );
             }
-        } ] ).play();
+        } ];
+        
+        if ( stageState !== null ) {
+            var oldI = stageState;
+            animations = animations.concat( [ {
+                hotspot: 100,
+                play: function () {
+                    return animateExitVert( 100, lines[ oldI ].box,
+                        stylishTextWrapperHeight, easeOutQuad );
+                }
+            }, {
+                hotspot: 100,
+                play: function () {
+                    var w = facingForwardsMap[ oldI ] * 34;
+                    return animateExitHoriz(
+                        100, lines[ oldI ].speaker, w, easeOutQuad );
+                }
+            } ] );
+        }
+        
+        if ( newStageState !== null ) {
+            var newI = newStageState;
+            animations = animations.concat( [ {
+                hotspot: 0,
+                play: function () {
+                    var w = facingForwardsMap[ newI ] * 34;
+                    return animateEnterHoriz(
+                        100, lines[ newI ].speaker, w, easeInQuad );
+                }
+            }, {
+                hotspot: 0,
+                play: function () {
+                    return animateEnterVert( 100, lines[ newI ].box,
+                        stylishTextWrapperHeight, easeInQuad );
+                }
+            } ] );
+        }
+        
+        stageState = newStageState;
+        
+        stageAnimation.cancel();
+        stageAnimation =
+            combineHotspotAnimations( animations ).play();
+    }
+    
+    cutToState( 0 );
+    
+    _.appendDom( stage, { click: function ( event ) {
+        animateToState( stageState === null ? 0 :
+            (stageState + 1) % lines.length );
     }, mousedown: function ( event ) {
         // Prevent selection of text.
         event.preventDefault();
