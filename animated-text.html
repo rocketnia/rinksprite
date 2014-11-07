@@ -583,6 +583,7 @@ function compileConversation( lines, getSpeakerInfo ) {
         var rawSpeakerInfo = getSpeakerInfo( speakerId );
         var speakerInfo = {
             name: "" + rawSpeakerInfo.name,
+            facing: "" + rawSpeakerInfo.facing,
             imageUrls: {
                 facingRight: nullOrString(
                     rawSpeakerInfo.imageUrls.facingRight ),
@@ -675,12 +676,22 @@ function activateStage( stage ) {
             setTranslation( line.box, 0, stylishTextWrapperHeight );
         
         
-        // TODO: Make the direction depend on speaker metadata rather
-        // than the index in the conversation.
+        function nullOrString( x ) {
+            return x === null || x === void 0 ? null : "" + x;
+        }
+        
+        var speakerId = "" + line.lineInfo.speakerId;
+        var speakerInfo = stageInfo.speakers[ "|" + speakerId ];
+        var imageUrls = {
+            "1": nullOrString( speakerInfo.imageUrls.facingRight ),
+            "-1": nullOrString( speakerInfo.imageUrls.facingLeft )
+        };
+        var facingForwards =
+            speakerInfo.facing === "facingRight" ? 1 : -1;
         
         line.speaker.style.position = "absolute";
         line.speaker.style.top = "0";
-        if ( i % 2 === 0 )
+        if ( 0 < facingForwards )
             line.speaker.style.left = "0";
         else
             line.speaker.style.right = "0";
@@ -690,21 +701,8 @@ function activateStage( stage ) {
         // first line is explicitly advanced.
         if ( i === 0 )
             setTranslation( line.speaker, 0, 0 );
-        else if ( i % 2 === 0 )
-            setTranslation( line.speaker, -34, 0 );
         else
-            setTranslation( line.speaker, 34, 0 );
-        
-        function nullOrString( x ) {
-            return x === null || x === void 0 ? null : "" + x;
-        }
-        var speakerId = "" + line.lineInfo.speakerId;
-        var speakerInfo = stageInfo.speakers[ "|" + speakerId ];
-        var imageUrls = {
-            "1": nullOrString( speakerInfo.imageUrls.facingRight ),
-            "-1": nullOrString( speakerInfo.imageUrls.facingLeft )
-        };
-        var facingForwards = i % 2 === 0 ? 1 : -1;
+            setTranslation( line.speaker, -34 * facingForwards, 0 );
         
         if ( imageUrls[ facingForwards ] !== null ) {
             _.dom( "img", { src: imageUrls[ facingForwards ], load:
@@ -926,16 +924,26 @@ _.appendDom( window, { load: function () {
     activateStage( stage );
     var stage2Wrapper = _.el( "stage2Wrapper" );
     stage2Wrapper.innerHTML = compileConversation( [
-        [ "elisa", "Line one." ],
-        [ "elisa", "Line two." ],
-        [ "elisa", "Line three." ]
+        [ "elisa1", "Line one." ],
+        [ "elisa2", "Line two." ],
+        [ "elisa1", "Line three." ]
     ], function ( speakerId ) {
         return {
-            name: "Elisa",
-            imageUrls: {
-                facingRight: "lib/elisa-standalone.png"
+            elisa1: {
+                name: "Elisa",
+                facing: "facingRight",
+                imageUrls: {
+                    facingRight: "lib/elisa-standalone.png"
+                }
+            },
+            elisa2: {
+                name: "Elisa",
+                facing: "facingLeft",
+                imageUrls: {
+                    facingRight: "lib/elisa-standalone.png"
+                }
             }
-        };
+        }[ speakerId ];
     } );
     activateStage(
         querySelectorGeneration( stage2Wrapper, 1, ".stage" ) );
@@ -964,7 +972,14 @@ _.appendDom( window, { load: function () {
 <div id="stage1" class="stage">
     <script type="text/plain"> {
         "speakers": {
-            "|elisa": {
+            "|elisa1": {
+                "facing": "facingRight",
+                "imageUrls": {
+                    "facingRight": "lib/elisa-standalone.png"
+                }
+            },
+            "|elisa2": {
+                "facing": "facingLeft",
                 "imageUrls": {
                     "facingRight": "lib/elisa-standalone.png"
                 }
@@ -973,7 +988,7 @@ _.appendDom( window, { load: function () {
     } </script>
     <div class="line">
         <script type="text/plain"> {
-            "speakerId": "elisa"
+            "speakerId": "elisa1"
         } </script>
         <canvas class="speaker" width="1" height="1"></canvas>
         <div class="stylish-text-wrapper"><div><div><div
@@ -1004,7 +1019,7 @@ _.appendDom( window, { load: function () {
     </div>
     <div class="line">
         <script type="text/plain"> {
-            "speakerId": "elisa"
+            "speakerId": "elisa2"
         } </script>
         <canvas class="speaker" width="1" height="1"></canvas>
         <div class="stylish-text-wrapper"><div><div><div
@@ -1020,7 +1035,7 @@ _.appendDom( window, { load: function () {
     </div>
     <div class="line">
         <script type="text/plain"> {
-            "speakerId": "elisa"
+            "speakerId": "elisa1"
         } </script>
         <canvas class="speaker" width="1" height="1"></canvas>
         <div class="stylish-text-wrapper"><div><div><div
