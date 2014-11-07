@@ -704,7 +704,7 @@ function activateStage( stage ) {
             "1": nullOrString( speakerInfo.imageUrls.facingRight ),
             "-1": nullOrString( speakerInfo.imageUrls.facingLeft )
         };
-        var facingForwards = i % 2 === 1 ? 1 : -1;
+        var facingForwards = i % 2 === 0 ? 1 : -1;
         
         if ( imageUrls[ facingForwards ] !== null ) {
             _.dom( "img", { src: imageUrls[ facingForwards ], load:
@@ -933,7 +933,7 @@ _.appendDom( window, { load: function () {
         return {
             name: "Elisa",
             imageUrls: {
-                facingLeft: "lib/elisa-standalone.png"
+                facingRight: "lib/elisa-standalone.png"
             }
         };
     } );
@@ -966,7 +966,7 @@ _.appendDom( window, { load: function () {
         "speakers": {
             "|elisa": {
                 "imageUrls": {
-                    "facingLeft": "lib/elisa-standalone.png"
+                    "facingRight": "lib/elisa-standalone.png"
                 }
             }
         }
