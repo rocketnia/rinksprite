@@ -472,6 +472,7 @@ function combineHotspotAnimations( anims ) {
     var result = {};
     result.hotspot = furthestAwayHotspot;
     result.play = function () {
+        var canceled = false;
         var remaining = anims.slice();
         var spawned = [];
         
@@ -487,10 +488,18 @@ function combineHotspotAnimations( anims ) {
         
         var result = {};
         result.cancel = function () {
+            if ( canceled )
+                return;
+            canceled = true;
             spawner.cancel();
             _.arrEach( spawned, function ( it ) {
                 it.cancel();
             } );
+            _.arrEach( remaining, function ( it ) {
+                it.play().cancel();
+            } );
+            spawned = null;
+            remaining = null;
         };
         return result;
     };
@@ -832,12 +841,7 @@ function activateStage( stage ) {
             }, 400 );
         }
         
-        var animations = [ {
-            hotspot: 0,
-            play: function () {
-                return animateLine( lines[ newI ].box );
-            }
-        } ];
+        var animations = [];
         
         if ( stageState !== null ) {
             var oldI = stageState;
@@ -871,6 +875,11 @@ function activateStage( stage ) {
                 play: function () {
                     return animateEnterVert( 100, lines[ newI ].box,
                         stylishTextWrapperHeight, easeInQuad );
+                }
+            }, {
+                hotspot: 0,
+                play: function () {
+                    return animateLine( lines[ newI ].box );
                 }
             } ] );
         }
