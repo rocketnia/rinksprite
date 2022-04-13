@@ -13,7 +13,7 @@ may have different authors and different posted licenses.
 -->
 <!--
 
-Copyright (c) 2014, Ross Angle
+Copyright (c) 2014, 2022 Rocketnia
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -43,37 +43,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <meta name="viewport"
     content="initial-scale = 1.0, maximum-scale = 1.0" />
 <style type="text/css">
-#sample-rectangle {
-    position: relative;
-    width: 204px;
-    height: 246px;
-    background: #006600;
-}
-#sample-rectangle-canvas {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-}
-#text-to-animate {
-    position: relative;
-    font-family: sans-serif;
-    text-shadow: 2px 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-/*
-#sample-rectangle, #text-to-animate, #buttons {
-    display: none;
-}
-*/
 
 .stage {
-    height: 150px;
-    width: 500px;
     position: relative;
     overflow: hidden;
+    height: 280px;
+    width: 500px;
+    margin: 6px;
+    border: 2px solid black;
     font-family: sans-serif;
     text-shadow: 2px 1px 2px rgba(0, 0, 0, 0.3);
-    background: rgb(24, 128, 196);
+    background: linear-gradient(to bottom,
+        rgb(24, 128, 196) 0%,
+        rgb(99, 170, 217) 20%,
+        rgb(99, 170, 217) 60%,
+        rgb(0, 0, 0) 100%);
     cursor: default;
 }
 .line {
@@ -131,6 +115,41 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     right: 5px;
     bottom: 15px;
 }
+
+#debug-area {
+    overflow: hidden;
+    margin: 6px;
+    border: 2px solid black;
+}
+#sample-rectangle {
+    position: relative;
+    width: 204px;
+    height: 246px;
+    background: rgb(99, 170, 217);
+}
+#sample-rectangle img {
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+#sample-rectangle-canvas {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
+#text-to-animate {
+    position: relative;
+    font-family: sans-serif;
+    text-shadow: 2px 1px 2px rgba(0, 0, 0, 0.3);
+}
+#buttons {
+    margin: 10px 4px;
+}
+
+/*
+#sample-rectangle, #text-to-animate, #buttons {
+    display: none;
+}
+*/
 
 </style>
 <script type="text/javascript" src="lib/lathe.js"></script>
@@ -581,8 +600,8 @@ function compileConversation( lines, getSpeakerInfo ) {
     var speakerMap = {};
     var linesCode = _.arrMap( lines, function ( line ) {
         
-        function nullOrString( x ) {
-            return x === null || x === void 0 ? null : "" + x;
+        function nullOrImage( x ) {
+            return x === void 0 ? null : x;
         }
         
         var speakerId = line[ 0 ];
@@ -591,9 +610,9 @@ function compileConversation( lines, getSpeakerInfo ) {
             name: "" + rawSpeakerInfo.name,
             facing: "" + rawSpeakerInfo.facing,
             imageUrls: {
-                facingRight: nullOrString(
+                facingRight: nullOrImage(
                     rawSpeakerInfo.imageUrls.facingRight ),
-                facingLeft: nullOrString(
+                facingLeft: nullOrImage(
                     rawSpeakerInfo.imageUrls.facingLeft )
             }
         };
@@ -670,20 +689,20 @@ function activateStage( stage ) {
                 ".stylish-text-wrapper" )
         };
     } );
-    var facingForwardsMap = _.arrMap( lines, function ( line, i ) {
+    var offsetMap = _.arrMap( lines, function ( line, i ) {
         
         setTranslation( line.box, 0, stylishTextWrapperHeight );
         
         
-        function nullOrString( x ) {
-            return x === null || x === void 0 ? null : "" + x;
+        function nullOrImage( x ) {
+            return x === void 0 ? null : x;
         }
         
         var speakerId = "" + line.lineInfo.speakerId;
         var speakerInfo = stageInfo.speakers[ "|" + speakerId ];
         var imageUrls = {
-            "1": nullOrString( speakerInfo.imageUrls.facingRight ),
-            "-1": nullOrString( speakerInfo.imageUrls.facingLeft )
+            "1": nullOrImage( speakerInfo.imageUrls.facingRight ),
+            "-1": nullOrImage( speakerInfo.imageUrls.facingLeft )
         };
         var facingForwards =
             speakerInfo.facing === "facingRight" ? 1 : -1;
@@ -694,38 +713,83 @@ function activateStage( stage ) {
             line.speaker.style.left = "0";
         else
             line.speaker.style.right = "0";
-        setTranslation( line.speaker, -34 * facingForwards, 0 );
         
+        function getScaleFactor( imageMetadata ) {
+            if ( imageMetadata.excessScale !== void 0 
+                && imageMetadata.excessScale !== null )
+                return 1 / imageMetadata.excessScale;
+            else
+                return 1;
+        }
+        
+        function isPixelated( imageMetadata ) {
+            if ( imageMetadata.pixelated !== void 0 
+                && imageMetadata.pixelated !== null )
+                return imageMetadata.pixelated;
+            else
+                return false;
+        }
+        
+        function savingAndRestoringContext2d( ctx, body ) {
+            ctx.save();
+            var oldImageSmoothingEnabled = ctx.imageSmoothingEnabled;
+            body();
+            ctx.imageSmoothingEnabled = oldImageSmoothingEnabled;
+            ctx.restore();
+        }
+        
+        var width;
         if ( imageUrls[ facingForwards ] !== null ) {
-            _.dom( "img", { src: imageUrls[ facingForwards ], load:
+            var imageMetadata = imageUrls[ facingForwards ];
+            var factor = getScaleFactor( imageMetadata );
+            width = Math.floor( imageMetadata.width * factor );
+            setTranslation(
+                line.speaker, -width * facingForwards, 0 );
+            _.dom( "img", { src: imageMetadata.url, load:
                 function ( e ) {
                 
-                line.speaker.width = e.target.width;
-                line.speaker.height = e.target.height;
+                line.speaker.width = width;
+                line.speaker.height =
+                    Math.floor( imageMetadata.height * factor );
                 var ctx = line.speaker.getContext( "2d" );
-                ctx.drawImage( e.target, 0, 0 );
+                savingAndRestoringContext2d( ctx, function () {
+                    ctx.scale( factor, factor );
+                    ctx.imageSmoothingEnabled =
+                        !isPixelated( imageMetadata );
+                    ctx.drawImage( e.target, 0, 0 );
+                } );
             } } );
         } else if ( imageUrls[ -facingForwards ] !== null ) {
-            _.dom( "img", { src: imageUrls[ -facingForwards ], load:
+            var imageMetadata = imageUrls[ -facingForwards ];
+            var factor = getScaleFactor( imageMetadata );
+            width = Math.floor( imageMetadata.width * factor );
+            setTranslation(
+                line.speaker, -width * facingForwards, 0 );
+            _.dom( "img", { src: imageMetadata.url, load:
                 function ( e ) {
                 
-                line.speaker.width = e.target.width;
-                line.speaker.height = e.target.height;
+                line.speaker.width = width;
+                line.speaker.height =
+                    Math.floor( imageMetadata.height * factor );
                 var ctx = line.speaker.getContext( "2d" );
-                ctx.save();
-                ctx.translate( e.target.width, 0 );
-                ctx.scale( -1, 1 );
-                ctx.drawImage( e.target, 0, 0 );
-                ctx.restore();
+                savingAndRestoringContext2d( ctx, function () {
+                    ctx.translate( width, 0 );
+                    ctx.scale( -1, 1 );
+                    ctx.scale( factor, factor );
+                    ctx.imageSmoothingEnabled =
+                        !isPixelated( imageMetadata );
+                    ctx.drawImage( e.target, 0, 0 );
+                } );
             } } );
         } else {
             // If there are no images available, use a transparent
             // pixel.
-            line.speaker.width = 1;
+            width = 1;
+            line.speaker.width = width;
             line.speaker.height = 1;
         }
         
-        return facingForwards;
+        return width * facingForwards;
     } );
     var stageState = null;
     var stageAnimation = { cancel: function () {
@@ -739,7 +803,7 @@ function activateStage( stage ) {
             setTranslation( lines[ stageState ].box,
                 0, stylishTextWrapperHeight );
             setTranslation( lines[ stageState ].speaker,
-                -34 * facingForwardsMap[ stageState ], 0 );
+                -offsetMap[ stageState ], 0 );
         }
         
         if ( newStageState !== null ) {
@@ -786,7 +850,7 @@ function activateStage( stage ) {
             }, {
                 hotspot: 100,
                 play: function () {
-                    var w = facingForwardsMap[ oldI ] * 34;
+                    var w = offsetMap[ oldI ];
                     return animateExitHoriz(
                         100, lines[ oldI ].speaker, w, easeOutQuad );
                 }
@@ -798,7 +862,7 @@ function activateStage( stage ) {
             animations = animations.concat( [ {
                 hotspot: 0,
                 play: function () {
-                    var w = facingForwardsMap[ newI ] * 34;
+                    var w = offsetMap[ newI ];
                     return animateEnterHoriz(
                         100, lines[ newI ].speaker, w, easeInQuad );
                 }
@@ -950,23 +1014,36 @@ _.appendDom( window, { load: function () {
     activateStage( stage );
     var stage2Wrapper = _.el( "stage2Wrapper" );
     stage2Wrapper.innerHTML = compileConversation( [
-        [ "elisa1", "Line one." ],
-        [ "elisa2", "Line two." ],
-        [ "elisa1", "Line three." ]
+        [ "elisa1", "This example was generated from JSON-like data for ease of development. The other one was initialized from the static HTML document structure." ],
+        [ "elisa2", "The dialogue was part of the static HTML? What's the point of that?" ],
+        [ "elisa1", "Better visibility to search engines, potentially. It might even be easier to get it to render in static form for offline printing or accessibility." ],
+        [ "elisa2", "Ah, wow. I see, hm... Never mind, I think I forgot everything you just said. Run that by me again?" ]
     ], function ( speakerId ) {
         return {
             elisa1: {
                 name: "Elisa",
                 facing: "facingRight",
                 imageUrls: {
-                    facingRight: "lib/elisa-standalone.png"
+                    facingRight: {
+                        url: "lib/elisa-standalone.png",
+                        width: 34,
+                        height: 41,
+                        excessScale: 0.14,
+                        pixelated: true
+                    }
                 }
             },
             elisa2: {
                 name: "Elisa",
                 facing: "facingLeft",
                 imageUrls: {
-                    facingRight: "lib/elisa-standalone.png"
+                    facingRight: {
+                        url: "lib/elisa-standalone.png",
+                        width: 34,
+                        height: 41,
+                        excessScale: 0.14,
+                        pixelated: true
+                    }
                 }
             }
         }[ speakerId ];
@@ -980,41 +1057,45 @@ _.appendDom( window, { load: function () {
 </script>
 </head>
 <body>
-<div id="sample-rectangle"
-    ><canvas id="sample-rectangle-canvas" width="1" height="1"
-        ></canvas
-    ><img src="lib/elisa-standalone.png" width="204" height="246"
-        /></div>
-<div id="text-to-animate" class="stylish-text-wrapper"><div><div><div
-    ><div class="hide-para-end"></div
-    ><div class="hide-line-end"></div
-    ><div class="text-to-animate"
-        >This is some animating text. This is some animating text.
-        This is some animating text. This is some animating text. This
-        is some animating text. This is some animating text. This is
-        some animating text. This is some animating text.</div>
-</div></div></div></div>
-<div id="buttons"></div>
+
+<h1>Rinksprite animated text demo</h1>
+
+<p>This is part of <a href="https://github.com/rocketnia/rinksprite">the Rinksprite project on GitHub</a>, a small collection of experiments in HTML-based animation.</p>
+
+<p>Many text animation libraries out there modify the DOM to separate text into its individual characters. This demo instead emulates its typewriter effect by rendering white rectangles over the top of the text.</p>
+
+<p>The artwork is by Jo Seraph and Jetrel. For more information, see the credits and links at the bottom of the page.</p>
+
 <div id="stage1" class="stage">
     <script type="text/plain"> {
         "speakers": {
-            "|elisa1": {
+            "|witch": {
                 "facing": "facingRight",
                 "imageUrls": {
-                    "facingRight": "lib/elisa-standalone.png"
+                    "facingLeft": {
+                        "url": "lib/witch/Witch_06.png",
+                        "width": 229,
+                        "height": 351,
+                        "excessScale": 1.3
+                    }
                 }
             },
-            "|elisa2": {
+            "|innkeeper": {
                 "facing": "facingLeft",
                 "imageUrls": {
-                    "facingRight": "lib/elisa-standalone.png"
+                    "facingLeft": {
+                        "url": "lib/innkeeper/Innkeeper_02.png",
+                        "width": 241,
+                        "height": 346,
+                        "excessScale": 1.3
+                    }
                 }
             }
         }
     } </script>
     <div class="line">
         <script type="text/plain"> {
-            "speakerId": "elisa1"
+            "speakerId": "witch"
         } </script>
         <canvas class="speaker" width="1" height="1"></canvas>
         <div class="stylish-text-wrapper"><div><div><div
@@ -1022,11 +1103,10 @@ _.appendDom( window, { load: function () {
             ><div class="hide-line-end"></div
             ><div class="text-to-animate"
                 >
-                This is line one. This is line one. This is line one.
-                This is line one. This is line one. This is line one.
-                This is line one. This is line one. This is line one.
-                This is line one. This is line one. This is line
-                one.</div>
+                This is some dialogue. Click anywhere on the text box
+                or the stage area to advance. Anyway, this is line
+                one. This is line one. This is line one. This is line
+                one. This is line one. This is line one.</div>
 <!--
                 l l l l l l l l l l l l l l l l l l l l l l l l l l l
                 l l l l l l l l l l l l l l l l l l l l l l l l l l l
@@ -1045,7 +1125,7 @@ _.appendDom( window, { load: function () {
     </div>
     <div class="line">
         <script type="text/plain"> {
-            "speakerId": "elisa2"
+            "speakerId": "innkeeper"
         } </script>
         <canvas class="speaker" width="1" height="1"></canvas>
         <div class="stylish-text-wrapper"><div><div><div
@@ -1061,7 +1141,7 @@ _.appendDom( window, { load: function () {
     </div>
     <div class="line">
         <script type="text/plain"> {
-            "speakerId": "elisa1"
+            "speakerId": "witch"
         } </script>
         <canvas class="speaker" width="1" height="1"></canvas>
         <div class="stylish-text-wrapper"><div><div><div
@@ -1075,9 +1155,45 @@ _.appendDom( window, { load: function () {
                 three.</div>
         </div></div></div></div>
     </div>
+    <div class="line">
+        <script type="text/plain"> {
+            "speakerId": "innkeeper"
+        } </script>
+        <canvas class="speaker" width="1" height="1"></canvas>
+        <div class="stylish-text-wrapper"><div><div><div
+            ><div class="hide-para-end"></div
+            ><div class="hide-line-end"></div
+            ><div class="text-to-animate"
+                >This is line four. This is line four. This is line
+                four. This is line four. This is line four. This is
+                line four. This is line four. This is line four.
+                Anyway, now we'll continue from the beginning of the
+                dialogue.</div>
+        </div></div></div></div>
+    </div>
 </div>
+
 <div id="stage2Wrapper"></div>
-<!--
+
+<div id="debug-area">
+    <!-- (204 by 246) = (34 by 41) * 6 -->
+    <div id="sample-rectangle"
+        ><canvas id="sample-rectangle-canvas" width="1" height="1"
+            ></canvas
+        ><img src="lib/elisa-standalone.png" width="204" height="246"
+            /></div>
+    <div id="text-to-animate" class="stylish-text-wrapper"><div><div><div
+        ><div class="hide-para-end"></div
+        ><div class="hide-line-end"></div
+        ><div class="text-to-animate"
+            >This is some animating text. This is some animating text.
+            This is some animating text. This is some animating text. This
+            is some animating text. This is some animating text. This is
+            some animating text. This is some animating text.</div>
+    </div></div></div></div>
+    <div id="buttons"></div>
+</div>
+
 <p
     >The witch portrait sprites were created by Jo Seraph and released
     under the CC-BY 3.0 license. They're
@@ -1088,7 +1204,6 @@ _.appendDom( window, { load: function () {
     released under the CC-BY 3.0 license. They're
     <a href="https://opengameart.org/content/js-actor-innkeeper"
         >available at Open Game Art</a>.</p>
--->
 <p
     >The Elisa platform game character sprites were created by Jetrel
     and placed into the public domain under the CC0 license. They're

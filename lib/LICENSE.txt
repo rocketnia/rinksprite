@@ -23,10 +23,10 @@ April 12, 2022. Specifically, they were unpacked from the
 "Innkeeper.zip" archive.
 
 The file "elisa-spritesheet1-transparent.png" is something I,
-Ross Angle, derived from "elisa-spritesheet1.png" in 2013 by replacing
+Rocketnia, derived from "elisa-spritesheet1.png" in 2013 by replacing
 the background color with full transparency. I release my contribution
 to this file under the CC0 license.
 
-The file "elisa-standalone.png" is something I, Ross Angle, derived
+The file "elisa-standalone.png" is something I, Rocketnia, derived
 from "elisa-spritesheet1-transparent.png" in 2013 by cropping it. I
 release my contribution to this file under the CC0 license.
