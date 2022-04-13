@@ -1,13 +1,32 @@
-In this directory, the file "elisa-spritesheet1.png" was made by
-Jetrel, who placed it into the public domain via the CC0 license. It
-was obtained from <http://opengameart.org/content/castle-platformer>
-on September 21, 2013.
+The files in this directory and its subdirectories are under their own
+various licenses.
 
-In 2013, I, Ross Angle, derived the file
-"elisa-spritesheet1-transparent.png" from "elisa-spritesheet1.png" by
-replacing the background color with full transparency. I release this
-file under the CC0 license.
+The file "lathe.js" documents its own license.
 
-In 2014, I, Ross Angle, derived the file "elisa-standalone.png" from
-"elisa-spritesheet1-transparent.png" by cropping it. I release this
-file under the CC0 license.
+The file "elisa-spritesheet1.png" was made by Jetrel, who placed it
+into the public domain via the CC0 license. It was obtained from
+<http://opengameart.org/content/castle-platformer> on
+September 21, 2013.
+
+The files in the "witch" subdirectory were made by Jo Seraph, who
+released them under the CC-BY 3.0 license. They were obtained from
+<https://opengameart.org/content/js-actor-witch> on April 12, 2022.
+Specifically, they were unpacked from the
+"Witch/Bust/Bust Set - Ace Size/" subdirectory of the "Witch.zip"
+archive.
+
+The files in the "innkeeper" subdirectory were made by Jo Seraph, who
+released them under the CC-BY 3.0 license. They were obtained from
+<https://opengameart.org/content/js-actor-innkeeper> on
+April 12, 2022. Specifically, they were unpacked from the
+"Innkeeper/Bust/Bust Set - Ace Size/" subdirectory of the
+"Innkeeper.zip" archive.
+
+The file "elisa-spritesheet1-transparent.png" is something I,
+Ross Angle, derived from "elisa-spritesheet1.png" in 2013 by replacing
+the background color with full transparency. I release my contribution
+to this file under the CC0 license.
+
+The file "elisa-standalone.png" is something I, Ross Angle, derived
+from "elisa-spritesheet1-transparent.png" in 2013 by cropping it. I
+release my contribution to this file under the CC0 license.
