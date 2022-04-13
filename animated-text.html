@@ -366,39 +366,42 @@ function easeInBackWithOvershoot( d ) {
     // Then we use the quadratic formula to find the zeros.
     //
     //   0
-    //   -2 / 3 * c / (c + 1)
+    //   2 / 3 * c / (c + 1)
     //
     // We plug these values of t into the easing function to get the
     // local maximum and local minimum at the cubic's two humps:
     //
     //   0
-    //   -20 / 27 * c * c * c / (c + 1) / (c + 1)
+    //   -4 / 27 * c * c * c / (c + 1) / (c + 1)
     //
     // What we actually care about is the negation of the local
     // minimum. This negation is the value we would like to fix as d.
     //
-    //   d = 20 / 27 * c * c * c / (c + 1) / (c + 1)
+    //   d = 4 / 27 * c * c * c / (c + 1) / (c + 1)
     //
     // What remains is to solve this for c, which we can do by framing
     // this as a polynomial (as long as c is not -1). We ask
     // Wolfram Alpha
-    // "Solve (0 = 20 / 27 * c^3 - d * c^2 + 2 * d * c - d) for c":
+    // "Solve (0 = 4 / 27 * c^3 - d * c^2 - 2 * d * c - d) for c":
     
-    // TODO: See if we need to handle the case where (5 < d), since
+    // TODO: See if we need to handle the case where (d < -1), since
     // right now Math.sqrt() won't be very helpful in that case.
     
-    if ( 5 < d )
+    if ( d < -1 )
         throw new Error();
     
     var d2 = d * d;
     var d3 = d2 * d;
     var cubeRoot = Math.pow(
-        27 * d3 - 180 * d2 + 200 * d +
-            40 * Math.sqrt( 5 ) * Math.sqrt( 5 * d2 - d3 ),
+        27 * d3 + 36 * d2 + 8 * Math.sqrt( d3 + d2 ) + 8 * d,
         1 / 3 );
+    // When (d = 0), a division step would fail us here, but the
+    // limiting behavior indicates the proper choice of coefficient is
+    // 0 in this case.
+    if ( cubeRoot === 0 )
+        return easeInBackWithCoef( 0 );
     var c =
-        3 / 20 * cubeRoot - (3240 * d - 729 * d2) / (540 * cubeRoot) +
-            9 * d / 20;
+        3 / 4 * (((9 * d2 + 8 * d) / cubeRoot) + cubeRoot + 3 * d);
     
     return easeInBackWithCoef( c );
 }
@@ -413,11 +416,15 @@ function easeInPow( pow ) {
     };
 }
 
-var easeInBack = easeInBackWithCoef( 1.7 );
+// Our original implementation of `easeInBackWithOvershoot` was buggy.
+// While it was, we were using `easeInBackWithCoef( 1.7 )` to
+// approximate `easeInBackWithOvershoot( 1 / 10 )`. That was close! It
+// seems a more accurate approximation would have been
+// `easeInBackWithCoef( 1.7015401988668237 )`.
+//
+//var easeInBack = easeInBackWithCoef( 1.7 );
+var easeInBack = easeInBackWithOvershoot( 1 / 10 );
 var easeOutBack = easeOut( easeInBack );
-// TODO: Oops, easeInBackWithOvershoot() actually doesn't work very
-// well. Figure out what's wrong with it.
-//var easeOutBack = easeOut( easeInBackWithOvershoot( 1 / 10 ) );
 
 var easeInLinear = easeInPow( 1 );
 var easeOutLinear = easeOut( easeInLinear );
