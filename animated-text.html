@@ -112,8 +112,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     position: absolute;
     top: 5px;
     left: 5px;
-    right: 5px;
-    bottom: 15px;
+    right: 25px;
+    bottom: 0;
+    overflow: auto;
 }
 
 #debug-area {
@@ -693,6 +694,7 @@ function activateStage( stage ) {
         return {
             lineInfo: JSON.parse( querySelectorGeneration( line, 1,
                 "script[type=\"text/plain\"]" ).firstChild.data ),
+            lineElement: line,
             speaker: querySelectorGeneration( line, 1, ".speaker" ),
             box: querySelectorGeneration( line, 1,
                 ".stylish-text-wrapper" )
@@ -700,6 +702,7 @@ function activateStage( stage ) {
     } );
     var offsetMap = _.arrMap( lines, function ( line, i ) {
         
+        line.lineElement.style.pointerEvents = "none";
         setTranslation( line.box, 0, stylishTextWrapperHeight );
         
         
@@ -809,6 +812,8 @@ function activateStage( stage ) {
             return;
         
         if ( stageState !== null ) {
+            lines[ stageState ].lineElement.style.pointerEvents =
+                "none";
             setTranslation( lines[ stageState ].box,
                 0, stylishTextWrapperHeight );
             setTranslation( lines[ stageState ].speaker,
@@ -816,6 +821,8 @@ function activateStage( stage ) {
         }
         
         if ( newStageState !== null ) {
+            lines[ newStageState ].lineElement.style.pointerEvents =
+                "";
             setTranslation( lines[ newStageState ].box, 0, 0 );
             setTranslation( lines[ newStageState ].speaker, 0, 0 );
         }
@@ -845,6 +852,7 @@ function activateStage( stage ) {
         
         if ( stageState !== null ) {
             var oldI = stageState;
+            lines[ oldI ].lineElement.style.pointerEvents = "none";
             animations = animations.concat( [ {
                 hotspot: 100,
                 play: function () {
@@ -863,6 +871,7 @@ function activateStage( stage ) {
         
         if ( newStageState !== null ) {
             var newI = newStageState;
+            lines[ newI ].lineElement.style.pointerEvents = "";
             animations = animations.concat( [ {
                 hotspot: 0,
                 play: function () {
@@ -1160,8 +1169,7 @@ _.appendDom( window, { load: function () {
                 >This is line three. This is line three. This is line
                 three. This is line three. This is line three. This is
                 line three. This is line three. This is line three.
-                This is line three. This is line three. This is line
-                three.</div>
+                This is line three. This is line three.</div>
         </div></div></div></div>
     </div>
     <div class="line">
