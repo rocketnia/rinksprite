@@ -228,11 +228,36 @@ function animateFor( totalMillis, onFrame, onCancel ) {
 }
 
 function animateText( elems, charactersPerSecond ) {
-    if ( elems.textToAnimate.childNodes.length !== 1 )
-        throw new Error();
-    var textNodeToAnimate = elems.textToAnimate.childNodes.item( 0 );
-    if ( textNodeToAnimate.nodeType !== document.TEXT_NODE )
-        throw new Error();
+    function getTextNodesFromChildNodes( nodes ) {
+        var textNodesToAnimate = [];
+        var stack = [ { nodes: nodes, index: 0 } ];
+        while ( stack.length !== 0 ) {
+            var nodesToAdd = stack.pop();
+            if ( !(nodesToAdd.index < nodesToAdd.nodes.length) )
+                continue;
+            var node = nodesToAdd.nodes.item( nodesToAdd.index );
+            stack.push( {
+                nodes: nodesToAdd.nodes,
+                index: nodesToAdd.index + 1
+            } );
+            if ( node.nodeType === document.TEXT_NODE ) {
+                textNodesToAnimate.push( node );
+            } else if ( node.nodeType === document.ELEMENT_NODE ) {
+                stack.push( { nodes: node.childNodes, index: 0 } );
+            } else if ( node.nodeType === document.COMMENT_NODE ) {
+                // Do nothing.
+            } else {
+                throw new Error(
+                    "Element type not supported (yet): " +
+                    node.nodeType );
+            }
+        }
+        return textNodesToAnimate;
+    }
+    var textNodesToAnimate = getTextNodesFromChildNodes(
+        elems.textToAnimate.childNodes );
+    var currentTextNodeIndex = 0;
+    var currentTextNodeCharacterIndex = 0;
     
     var origParaEndStyles = setStyles( elems.hideParaEnd, {
         backgroundColor: "white",
@@ -251,39 +276,57 @@ function animateText( elems, charactersPerSecond ) {
         width: ""
     } );
     
-    var textIndex = 0;
-    
+    var previousElapsedMillis = 0;
+    var previousRemainingCharactersToConsume = 0;
     var result = animateFor( 1 / 0, function ( elapsedMillis ) {
-        var charactersToConsume =
-            Math.min( textNodeToAnimate.data.length,
-                ~~(elapsedMillis * charactersPerSecond / 1000) );
-        var inWhitespace = true;
-        var beenOutOfWhitespace = false;
-        var n = textNodeToAnimate.data.length;
-        for ( var i = 0; i < n; i++ ) {
-            if ( charactersToConsume === 0 )
-                break;
-            
-            if ( /^[ \t\r\n]$/.test(
-                textNodeToAnimate.data.charAt( i ) ) ) {
-                
-                inWhitespace = true;
-            } else {
-                if ( inWhitespace && beenOutOfWhitespace ) {
-                    charactersToConsume--;
-                    if ( charactersToConsume === 0 ) {
-                        i--;
-                        break;
-                    }
-                }
+        var deltaMillis = elapsedMillis - previousElapsedMillis;
+        previousElapsedMillis = elapsedMillis;
+        var fractionalCharactersToConsume =
+            previousRemainingCharactersToConsume +
+            deltaMillis * charactersPerSecond / 1000;
+        var charactersToConsume = ~~fractionalCharactersToConsume;
+        previousRemainingCharactersToConsume =
+            fractionalCharactersToConsume - charactersToConsume;
+        
+        function isWhitespace( ch ) {
+            return /^[ \t\r\n]$/.test( ch );
+        }
+        while ( (true
+            && currentTextNodeIndex < textNodesToAnimate.length
+            && 0 < charactersToConsume
+        ) ) {
+            var data =
+                textNodesToAnimate[ currentTextNodeIndex ].data;
+            var skippedWhitespace = false;
+            while ( (true
+                && currentTextNodeCharacterIndex < data.length
+                && isWhitespace(
+                    data.charAt( currentTextNodeCharacterIndex ) )
+            ) ) {
+                skippedWhitespace = true;
+                currentTextNodeCharacterIndex++;
+            }
+            if ( skippedWhitespace ) {
                 charactersToConsume--;
-                inWhitespace = false;
-                beenOutOfWhitespace = true;
+            }
+            if ( data.length <= currentTextNodeCharacterIndex ) {
+                currentTextNodeIndex++;
+                currentTextNodeCharacterIndex = 0;
+            } else if ( !skippedWhitespace ) {
+                // TODO: Handle UTF-16 surrogate code points and
+                // extended grapheme clusters.
+                currentTextNodeCharacterIndex++;
+                charactersToConsume--;
             }
         }
         
+        if ( textNodesToAnimate.length <= currentTextNodeIndex )
+            return void result.cancel();
+        
         var hideRange = document.createRange();
-        hideRange.setStart( textNodeToAnimate, i );
+        hideRange.setStart(
+            textNodesToAnimate[ currentTextNodeIndex ],
+            currentTextNodeCharacterIndex );
         hideRange.setEndAfter( elems.textToAnimateWrapper );
         var hideRects = hideRange.getClientRects();
         if ( hideRects.length === 0 ) {
@@ -306,9 +349,6 @@ function animateText( elems, charactersPerSecond ) {
             height: (wrapperRect.bottom - hideLineRect.top) + "px",
             width: (wrapperRect.right - hideLineRect.left) + "px"
         } );
-        
-        if ( i === textNodeToAnimate.data.length )
-            return void result.cancel();
     }, function () {  // onCancel
         setStyles( elems.hideParaEnd, origParaEndStyles );
         setStyles( elems.hideLineEnd, origLineEndStyles );
