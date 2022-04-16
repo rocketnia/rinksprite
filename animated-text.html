@@ -648,24 +648,8 @@ function compileConversation( lines, getSpeakerInfo ) {
     
     var speakerMap = {};
     var linesCode = _.arrMap( lines, function ( line ) {
-        
-        function nullOrImage( x ) {
-            return x === void 0 ? null : x;
-        }
-        
         var speakerId = line[ 0 ];
-        var rawSpeakerInfo = getSpeakerInfo( speakerId );
-        var speakerInfo = {
-            name: "" + rawSpeakerInfo.name,
-            facing: "" + rawSpeakerInfo.facing,
-            imageUrls: {
-                facingRight: nullOrImage(
-                    rawSpeakerInfo.imageUrls.facingRight ),
-                facingLeft: nullOrImage(
-                    rawSpeakerInfo.imageUrls.facingLeft )
-            }
-        };
-        speakerMap[ "|" + speakerId ] = speakerInfo;
+        speakerMap[ "|" + speakerId ] = getSpeakerInfo( speakerId );
         var stageDirections = _.arrCut( line, 1, line.length - 1 );
         var dialogue = line[ line.length - 1 ];
         // TODO: Put speakerInfo.name in here somewhere that a screen
@@ -745,18 +729,22 @@ function activateStage( stage ) {
         setTranslation( line.box, 0, stylishTextWrapperHeight );
         
         
-        function nullOrImage( x ) {
-            return x === void 0 ? null : x;
-        }
-        
         var speakerId = "" + line.lineInfo.speakerId;
         var speakerInfo = stageInfo.speakers[ "|" + speakerId ];
-        var imageUrls = {
-            "1": nullOrImage( speakerInfo.imageUrls.facingRight ),
-            "-1": nullOrImage( speakerInfo.imageUrls.facingLeft )
-        };
+        function getImageMetadata() {
+            var m = speakerInfo.moodImageDefaultMetadata;
+            return {
+                url: speakerInfo.moodImages[ speakerInfo.defaultMood ],
+                width: m.width,
+                height: m.height,
+                excessScale: m.excessScale,
+                flipped: speakerInfo.defaultFacing !== m.facing,
+                pixelated: m.pixelated
+            }
+        }
+        var imageMetadata = getImageMetadata();
         var facingForwards =
-            speakerInfo.facing === "facingRight" ? 1 : -1;
+            speakerInfo.defaultFacing === "facingRight" ? 1 : -1;
         
         line.speaker.style.position = "absolute";
         line.speaker.style.top = "0";
@@ -789,56 +777,28 @@ function activateStage( stage ) {
             ctx.restore();
         }
         
-        var width;
-        if ( imageUrls[ facingForwards ] !== null ) {
-            var imageMetadata = imageUrls[ facingForwards ];
-            var factor = getScaleFactor( imageMetadata );
-            width = Math.floor( imageMetadata.width * factor );
-            setTranslation(
-                line.speaker, -width * facingForwards, 0 );
-            _.dom( "img", { src: imageMetadata.url, load:
-                function ( e ) {
-                
-                line.speaker.width = width;
-                line.speaker.height =
-                    Math.floor( imageMetadata.height * factor );
-                var ctx = line.speaker.getContext( "2d" );
-                savingAndRestoringContext2d( ctx, function () {
-                    ctx.scale( factor, factor );
-                    ctx.imageSmoothingEnabled =
-                        !isPixelated( imageMetadata );
-                    ctx.drawImage( e.target, 0, 0 );
-                } );
-            } } );
-        } else if ( imageUrls[ -facingForwards ] !== null ) {
-            var imageMetadata = imageUrls[ -facingForwards ];
-            var factor = getScaleFactor( imageMetadata );
-            width = Math.floor( imageMetadata.width * factor );
-            setTranslation(
-                line.speaker, -width * facingForwards, 0 );
-            _.dom( "img", { src: imageMetadata.url, load:
-                function ( e ) {
-                
-                line.speaker.width = width;
-                line.speaker.height =
-                    Math.floor( imageMetadata.height * factor );
-                var ctx = line.speaker.getContext( "2d" );
-                savingAndRestoringContext2d( ctx, function () {
+        var factor = getScaleFactor( imageMetadata );
+        var width = Math.floor( imageMetadata.width * factor );
+        line.speaker.width = width;
+        line.speaker.height =
+            Math.floor( imageMetadata.height * factor );
+        setTranslation( line.speaker, -width * facingForwards, 0 );
+        console.log( "Loading " + imageMetadata.url );
+        _.dom( "img", { src: imageMetadata.url, load: function ( e ) {
+            console.log( "Loaded " + imageMetadata.url );
+            console.log( imageMetadata );
+            var ctx = line.speaker.getContext( "2d" );
+            savingAndRestoringContext2d( ctx, function () {
+                if ( imageMetadata.flipped ) {
                     ctx.translate( width, 0 );
                     ctx.scale( -1, 1 );
-                    ctx.scale( factor, factor );
-                    ctx.imageSmoothingEnabled =
-                        !isPixelated( imageMetadata );
-                    ctx.drawImage( e.target, 0, 0 );
-                } );
-            } } );
-        } else {
-            // If there are no images available, use a transparent
-            // pixel.
-            width = 1;
-            line.speaker.width = width;
-            line.speaker.height = 1;
-        }
+                }
+                ctx.scale( factor, factor );
+                ctx.imageSmoothingEnabled =
+                    !isPixelated( imageMetadata );
+                ctx.drawImage( e.target, 0, 0 );
+            } );
+        } } );
         
         return width * facingForwards;
     } );
@@ -1079,28 +1039,32 @@ _.appendDom( window, { load: function () {
         return {
             elisa1: {
                 name: "Elisa",
-                facing: "facingRight",
-                imageUrls: {
-                    facingRight: {
-                        url: "lib/elisa-standalone.png",
-                        width: 34,
-                        height: 41,
-                        excessScale: 0.14,
-                        pixelated: true
-                    }
+                defaultFacing: "facingRight",
+                defaultMood: "businesslike",
+                moodImages: {
+                    businesslike: "lib/elisa-standalone.png"
+                },
+                moodImageDefaultMetadata: {
+                    facing: "facingRight",
+                    width: 34,
+                    height: 41,
+                    excessScale: 0.14,
+                    pixelated: true
                 }
             },
             elisa2: {
                 name: "Elisa",
-                facing: "facingLeft",
-                imageUrls: {
-                    facingRight: {
-                        url: "lib/elisa-standalone.png",
-                        width: 34,
-                        height: 41,
-                        excessScale: 0.14,
-                        pixelated: true
-                    }
+                defaultFacing: "facingLeft",
+                defaultMood: "businesslike",
+                moodImages: {
+                    businesslike: "lib/elisa-standalone.png"
+                },
+                moodImageDefaultMetadata: {
+                    facing: "facingRight",
+                    width: 34,
+                    height: 41,
+                    excessScale: 0.14,
+                    pixelated: true
                 }
             }
         }[ speakerId ];
@@ -1127,25 +1091,45 @@ _.appendDom( window, { load: function () {
     <script type="text/plain"> {
         "speakers": {
             "|witch": {
-                "facing": "facingRight",
-                "imageUrls": {
-                    "facingLeft": {
-                        "url": "lib/witch/Witch_06.png",
-                        "width": 229,
-                        "height": 351,
-                        "excessScale": 1.3
-                    }
+                "name": "Witch",
+                "defaultFacing": "facingRight",
+                "defaultMood": "guffawing",
+                "moodImages": {
+                    "pensive": "lib/witch/Witch_01.png",
+                    "businesslike": "lib/witch/Witch_02.png",
+                    "nervous": "lib/witch/Witch_03.png",
+                    "urging": "lib/witch/Witch_04.png",
+                    "despondent": "lib/witch/Witch_05.png",
+                    "guffawing": "lib/witch/Witch_06.png",
+                    "pleased": "lib/witch/Witch_07.png",
+                    "aggrieved": "lib/witch/Witch_08.png"
+                },
+                "moodImageDefaultMetadata": {
+                    "facing": "facingLeft",
+                    "width": 229,
+                    "height": 351,
+                    "excessScale": 1.3
                 }
             },
             "|innkeeper": {
-                "facing": "facingLeft",
-                "imageUrls": {
-                    "facingLeft": {
-                        "url": "lib/innkeeper/Innkeeper_02.png",
-                        "width": 241,
-                        "height": 346,
-                        "excessScale": 1.3
-                    }
+                "name": "Innkeeper",
+                "defaultFacing": "facingLeft",
+                "defaultMood": "pleased",
+                "moodImages": {
+                    "businesslike": "lib/innkeeper/Innkeeper_01.png",
+                    "pleased": "lib/innkeeper/Innkeeper_02.png",
+                    "flummoxed": "lib/innkeeper/Innkeeper_03.png",
+                    "despondent": "lib/innkeeper/Innkeeper_04.png",
+                    "aggrieved": "lib/innkeeper/Innkeeper_05.png",
+                    "urging": "lib/innkeeper/Innkeeper_06.png",
+                    "effervescent": "lib/innkeeper/Innkeeper_07.png",
+                    "nervous": "lib/innkeeper/Innkeeper_08.png"
+                },
+                "moodImageDefaultMetadata": {
+                    "facing": "facingLeft",
+                    "width": 241,
+                    "height": 346,
+                    "excessScale": 1.3
                 }
             }
         }
