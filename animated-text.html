@@ -646,12 +646,45 @@ function compileConversation( lines, getSpeakerInfo ) {
         return JSON.stringify( jsonObj ).replace( "<", "\\u003c" );
     }
     
-    var speakerMap = {};
-    var linesCode = _.arrMap( lines, function ( line ) {
+    var processedLines = _.arrMap( lines, function ( line ) {
         var speakerId = line[ 0 ];
-        speakerMap[ "|" + speakerId ] = getSpeakerInfo( speakerId );
         var stageDirections = _.arrCut( line, 1, line.length - 1 );
         var dialogue = line[ line.length - 1 ];
+        var mood = null;
+        _.arrEach( stageDirections, function ( stageDirection ) {
+            if ( (true
+                && _.likeArray( stageDirection )
+                && stageDirection.length === 2
+                && stageDirection[ 0 ] === "mood"
+                && _.isString( stageDirection[ 1 ] )
+            ) ) {
+                if ( mood !== null )
+                    throw new Error(
+                        "Found multiple mood declarations" );
+                mood = stageDirection[ 1 ];
+            } else {
+                throw new Error(
+                    "Unrecognized stage direction " +
+                    JSON.stringify( stageDirection ) );
+            }
+        } );
+        return {
+            speakerId: speakerId,
+            mood: mood,
+            dialogue: dialogue
+        };
+    } );
+    
+    var speakerMap = {};
+    _.arrEach( processedLines, function ( line ) {
+        var speakerId = line.speakerId;
+        speakerMap[ "|" + speakerId ] = getSpeakerInfo( speakerId );
+    } );
+    
+    var linesCode = _.arrMap( processedLines, function ( line ) {
+        var speakerId = line.speakerId;
+        var mood = line.mood;
+        var dialogue = line.dialogue;
         // TODO: Put speakerInfo.name in here somewhere that a screen
         // reader will read (or that a text box style could use as a
         // heading, perhaps).
@@ -660,7 +693,7 @@ function compileConversation( lines, getSpeakerInfo ) {
 "        <script type=\"text/plain\">\n" +
             jsonForScriptTag( {
                 speakerId: speakerId,
-                stageDirections: stageDirections
+                mood: mood
             } ) + "\n" +
 "        <" + "/script>" +
 "        <canvas class=\"speaker\" width=\"1\" height=\"1\"><" +
@@ -731,10 +764,13 @@ function activateStage( stage ) {
         
         var speakerId = "" + line.lineInfo.speakerId;
         var speakerInfo = stageInfo.speakers[ "|" + speakerId ];
+        var mood = line.lineInfo.mood;
+        if ( mood === void 0 || mood === null )
+            mood = speakerInfo.defaultMood;
         function getImageMetadata() {
             var m = speakerInfo.moodImageDefaultMetadata;
             return {
-                url: speakerInfo.moodImages[ speakerInfo.defaultMood ],
+                url: speakerInfo.moodImages[ mood ],
                 width: m.width,
                 height: m.height,
                 excessScale: m.excessScale,
@@ -1182,7 +1218,8 @@ _.appendDom( window, { load: function () {
     </div>
     <div class="line">
         <script type="text/plain"> {
-            "speakerId": "witch"
+            "speakerId": "witch",
+            "mood": "aggrieved"
         } </script>
         <canvas class="speaker" width="1" height="1"></canvas>
         <div class="stylish-text-wrapper"><div><div><div
@@ -1197,7 +1234,8 @@ _.appendDom( window, { load: function () {
     </div>
     <div class="line">
         <script type="text/plain"> {
-            "speakerId": "innkeeper"
+            "speakerId": "innkeeper",
+            "mood": "flummoxed"
         } </script>
         <canvas class="speaker" width="1" height="1"></canvas>
         <div class="stylish-text-wrapper"><div><div><div
